@@ -460,7 +460,7 @@ final class VeneraBridge {
         HTTP.plainSession.dataTask(with: request) { data, response, error in
             if let error {
                 let code = (error as NSError).code
-                if code == NSURLErrorDataLengthExceeded, !identity {
+                if code == -1103, !identity {
                     self.http(method, urlString, headersJSON, body, bytes, resolve, reject, identity: true)
                     return
                 }
