@@ -457,18 +457,44 @@ final class VeneraBridge {
         if let body, let data = Data(base64Encoded: body) { request.httpBody = data }
 
         let queue = self.queue
-        // 第 1 次：一般連線；第 2 次：不壓縮 + 只走 TCP；第 3 次：再加上不經過任何代理
+        let host = url.host ?? ""
+        let deliver: (Int, [String: String], Data) -> Void = { status, headers, payload in
+            let result: [String: Any] = [
+                "status": status,
+                "headers": headers,
+                "body": bytes ? payload.base64EncodedString() : String(decoding: payload, as: UTF8.self),
+            ]
+            let json = (try? JSONSerialization.data(withJSONObject: result)).map { String(decoding: $0, as: UTF8.self) } ?? "{}"
+            queue.async { _ = resolve.call(withArguments: [json]) }
+        }
+
+        // 第 1 次：一般連線；第 2 次：不壓縮 + 只走 TCP；第 3 次：再加上不經過任何代理；
+        // 第 4 次：完全不用系統網路層（URLSession），自己用 Network.framework 收發（venera 也不是用系統網路層）
+        if attempt >= 3 {
+            let final = request
+            Task.detached {
+                do {
+                    let reply = try await RawHTTP.fetch(final)
+                    deliver(reply.status, reply.headers, reply.body)
+                } catch {
+                    let message = "\(host)：\(error.localizedDescription) #4"
+                    queue.async { _ = reject.call(withArguments: [message]) }
+                }
+            }
+            return
+        }
+
         let session = attempt == 0 ? HTTP.plainSession : (attempt == 1 ? HTTP.tcpSession : HTTP.directSession)
         var taskID = 0
         let task = session.dataTask(with: request) { data, response, error in
             if let error {
                 let code = (error as NSError).code
-                let info = TrustDelegate.metrics(for: taskID).map { " [\($0)]" } ?? ""
-                if code == -1103, attempt < 2 {
+                if code == -1103, attempt < 3 {
                     self.http(method, urlString, headersJSON, body, bytes, resolve, reject, attempt: attempt + 1)
                     return
                 }
-                let message = "\(url.host ?? "")：\(error.localizedDescription) (\(code))\(info) #\(attempt + 1)"
+                let info = TrustDelegate.metrics(for: taskID).map { " [\($0)]" } ?? ""
+                let message = "\(host)：\(error.localizedDescription) (\(code))\(info) #\(attempt + 1)"
                 queue.async { _ = reject.call(withArguments: [message]) }
                 return
             }
@@ -478,14 +504,7 @@ final class VeneraBridge {
             }
             var headers: [String: String] = [:]
             for (key, value) in http.allHeaderFields { headers["\(key)".lowercased()] = "\(value)" }
-            let payload = data ?? Data()
-            let result: [String: Any] = [
-                "status": http.statusCode,
-                "headers": headers,
-                "body": bytes ? payload.base64EncodedString() : String(decoding: payload, as: UTF8.self),
-            ]
-            let json = (try? JSONSerialization.data(withJSONObject: result)).map { String(decoding: $0, as: UTF8.self) } ?? "{}"
-            queue.async { _ = resolve.call(withArguments: [json]) }
+            deliver(http.statusCode, headers, data ?? Data())
         }
         taskID = task.taskIdentifier
         task.resume()

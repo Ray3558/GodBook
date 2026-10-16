@@ -48,8 +48,17 @@ enum HTTP {
         do {
             (data, response) = try await session.data(for: request)
         } catch let error as URLError where error.code.rawValue == -1103 {
-            // 某些網路環境下 HTTP/3 會回 -1103，改走只用 TCP 的連線重試
-            (data, response) = try await tcpSession.data(for: request)
+            // 某些網路環境下系統網路層會回 -1103：依序改用「只走 TCP」與「完全不用 URLSession」的連線重試
+            do {
+                (data, response) = try await tcpSession.data(for: request)
+            } catch let again as URLError where again.code.rawValue == -1103 {
+                let reply = try await RawHTTP.fetch(request)
+                guard let url = request.url,
+                      let http = HTTPURLResponse(url: url, statusCode: reply.status, httpVersion: "HTTP/1.1", headerFields: reply.headers) else {
+                    throw AppError.message(L("無效的伺服器回應"))
+                }
+                return (reply.body, http)
+            }
         }
         guard let http = response as? HTTPURLResponse else { throw AppError.message(L("無效的伺服器回應")) }
         return (data, http)
