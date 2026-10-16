@@ -2,6 +2,8 @@ import SwiftUI
 
 struct ReaderView: View {
     let route: ReaderRoute
+    /// 由呈現端提供的關閉動作（比 `@Environment(\.dismiss)` 在 fullScreenCover 中更可靠）
+    let onClose: () -> Void
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var settings: AppSettings
@@ -96,11 +98,7 @@ struct ReaderView: View {
 
     private var topBar: some View {
         HStack(spacing: 12) {
-            Button { dismiss() } label: {
-                Image(systemName: "xmark").font(.headline).frame(width: 44, height: 44)
-            }
-            .buttonStyle(.plain)
-            .glass(in: Circle(), interactive: true)
+            circleButton("xmark") { close() }
 
             VStack(alignment: .leading, spacing: 0) {
                 Text(detail.summary.title).font(.footnote.weight(.semibold)).lineLimit(1)
@@ -119,9 +117,8 @@ struct ReaderView: View {
                     ForEach(ReaderMode.allCases) { Text($0.title).tag($0) }
                 }
             } label: {
-                Image(systemName: "rectangle.on.rectangle.angled").font(.headline).frame(width: 44, height: 44)
+                circleLabel("rectangle.on.rectangle.angled")
             }
-            .glass(in: Circle(), interactive: true)
         }
         .padding(.horizontal, 16)
         .padding(.top, 8)
@@ -131,10 +128,8 @@ struct ReaderView: View {
     private var bottomBar: some View {
         HStack(spacing: 12) {
             if detail.chapters.count > 1 {
-                Button { step(-1) } label: { Image(systemName: "chevron.left.2").frame(width: 40, height: 40) }
+                circleButton("chevron.left.2") { step(-1) }
                     .disabled(chapterIndex == 0)
-                    .buttonStyle(.plain)
-                    .glass(in: Circle(), interactive: true)
             }
 
             VStack(spacing: 4) {
@@ -151,15 +146,32 @@ struct ReaderView: View {
             .glassCard(cornerRadius: 24)
 
             if detail.chapters.count > 1 {
-                Button { step(1) } label: { Image(systemName: "chevron.right.2").frame(width: 40, height: 40) }
+                circleButton("chevron.right.2") { step(1) }
                     .disabled(chapterIndex >= detail.chapters.count - 1)
-                    .buttonStyle(.plain)
-                    .glass(in: Circle(), interactive: true)
             }
         }
         .padding(.horizontal, 16)
         .padding(.bottom, 8)
         .foregroundStyle(.white)
+    }
+
+    /// 圓形玻璃按鈕：整個圓都是點擊範圍
+    private func circleButton(_ systemName: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) { circleLabel(systemName) }
+            .buttonStyle(.plain)
+    }
+
+    private func circleLabel(_ systemName: String) -> some View {
+        Image(systemName: systemName)
+            .font(.headline)
+            .frame(width: 48, height: 48)
+            .glass(in: Circle(), interactive: true)
+            .contentShape(Circle())
+    }
+
+    private func close() {
+        onClose()
+        dismiss()
     }
 
     // MARK: 載入

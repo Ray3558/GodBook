@@ -63,7 +63,7 @@ struct DetailView: View {
         }
         .task { await load() }
         .fullScreenCover(item: $reader) { route in
-            ReaderView(route: route)
+            ReaderView(route: route, onClose: { reader = nil })
                 .environmentObject(library)
                 .environmentObject(theme)
                 .environmentObject(settings)
