@@ -108,11 +108,11 @@ struct ReaderView: View {
             PagedReader(pages: pages, current: $current, vertical: mode == .pagedVertical, rtl: mode.isRTL,
                         prefs: prefs, onTap: handleTap, onQuickCollect: { collect($0) },
                         nextTitle: edgeTitle(1), prevTitle: edgeTitle(-1),
-                        onEdge: { delta in step(delta, atEnd: delta < 0) })
+                        onEdge: { delta in stepReading(delta, atEnd: delta < 0) })
         } else {
             ContinuousReader(pages: pages, current: $current, horizontal: mode != .vertical, rtl: mode.isRTL,
                              prefs: prefs, onTap: handleTap, onQuickCollect: { collect($0) },
-                             nextTitle: edgeTitle(1), onNext: { step(1, atEnd: false) })
+                             nextTitle: edgeTitle(1), onNext: { stepReading(1) })
         }
     }
 
@@ -133,8 +133,8 @@ struct ReaderView: View {
     /// 自動切章的過場頁標題；沒有該章或關閉了功能時回傳 nil
     private func edgeTitle(_ delta: Int) -> String? {
         guard appSettings.autoNextChapter else { return nil }
-        let index = chapterIndex + delta
-        return detail.chapters.indices.contains(index) ? detail.chapters[index].title : nil
+        guard let index = delta > 0 ? detail.nextIndex(after: chapterIndex) : detail.previousIndex(before: chapterIndex) else { return nil }
+        return detail.chapters[index].title
     }
 
     private func toggleChrome() { withAnimation(.snappy) { showChrome.toggle() } }
@@ -142,9 +142,9 @@ struct ReaderView: View {
     private func turn(_ delta: Int) {
         let target = current + delta
         if target < 0 {
-            if chapterIndex > 0 { step(-1) } else { show(L("已經是第一頁")) }
+            if detail.previousIndex(before: chapterIndex) != nil { stepReading(-1, atEnd: true) } else { show(L("已經是第一頁")) }
         } else if target >= pages.count {
-            if chapterIndex < detail.chapters.count - 1 { step(1) } else { show(L("已經是最後一頁")) }
+            if detail.nextIndex(after: chapterIndex) != nil { stepReading(1) } else { show(L("已經是最後一頁")) }
         } else {
             current = target
         }
@@ -214,8 +214,8 @@ struct ReaderView: View {
     private var bottomBar: some View {
         HStack(spacing: 12) {
             if detail.chapters.count > 1 {
-                circleButton("chevron.left.2") { step(-1) }
-                    .disabled(chapterIndex == 0)
+                circleButton("chevron.left.2") { stepReading(-1) }
+                    .disabled(detail.previousIndex(before: chapterIndex) == nil)
             }
 
             VStack(spacing: 4) {
@@ -232,8 +232,8 @@ struct ReaderView: View {
             .glassCard(cornerRadius: 24)
 
             if detail.chapters.count > 1 {
-                circleButton("chevron.right.2") { step(1) }
-                    .disabled(chapterIndex >= detail.chapters.count - 1)
+                circleButton("chevron.right.2") { stepReading(1) }
+                    .disabled(detail.nextIndex(after: chapterIndex) == nil)
             }
         }
         .padding(.horizontal, 16)
@@ -340,7 +340,11 @@ struct ReaderView: View {
         chapterIndex = index
     }
 
-    private func step(_ delta: Int, atEnd: Bool = false) { selectChapter(chapterIndex + delta, atEnd: atEnd) }
+    /// 依閱讀順序（不是清單順序）前進 / 後退一章
+    private func stepReading(_ delta: Int, atEnd: Bool = false) {
+        guard let index = delta > 0 ? detail.nextIndex(after: chapterIndex) : detail.previousIndex(before: chapterIndex) else { return }
+        selectChapter(index, atEnd: atEnd)
+    }
 
     private func load() async {
         isLoading = true

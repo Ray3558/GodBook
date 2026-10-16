@@ -42,7 +42,7 @@ struct DetailView: View {
                     }
                     if !detail.tags.isEmpty { tagSection(detail) }
                     ThumbnailStrip(detail: detail) { index in
-                        reader = ReaderRoute(detail: detail, chapterIndex: 0, startPage: index)
+                        reader = ReaderRoute(detail: detail, chapterIndex: detail.firstReadIndex, startPage: index)
                     }
                     if detail.chapters.count > 1 { chapterSection(detail) }
                     if !detail.related.isEmpty { relatedSection(detail) }
@@ -130,11 +130,11 @@ struct DetailView: View {
                     reader = ReaderRoute(detail: detail, chapterIndex: resumeIndex, startPage: progress.pageIndex)
                 }
                 GlassButton(title: L("從頭"), systemImage: "backward.end.fill") {
-                    reader = ReaderRoute(detail: detail, chapterIndex: 0, startPage: 0)
+                    reader = ReaderRoute(detail: detail, chapterIndex: detail.firstReadIndex, startPage: 0)
                 }
             } else {
                 GlassButton(title: L("開始閱讀"), systemImage: "book.fill", prominent: true) {
-                    reader = ReaderRoute(detail: detail, chapterIndex: 0, startPage: 0)
+                    reader = ReaderRoute(detail: detail, chapterIndex: detail.firstReadIndex, startPage: 0)
                 }
             }
         }
