@@ -445,10 +445,17 @@ final class VeneraBridge {
         }
         var request = URLRequest(url: url)
         request.httpMethod = method
+        // 這些標頭必須交給系統處理：手動指定 Accept-Encoding 會讓 URLSession 不再自動解壓縮
+        //（腳本常帶 "gzip, deflate, br, zstd"，結果收到壓縮資料或 -1103 resource exceeds maximum size）
+        let managedHeaders: Set<String> = ["accept-encoding", "content-length", "host", "connection", "transfer-encoding"]
         if let data = headersJSON.data(using: .utf8),
            let headers = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-            for (key, value) in headers { request.setValue("\(value)", forHTTPHeaderField: key) }
+            for (key, value) in headers where !managedHeaders.contains(key.lowercased()) {
+                request.setValue("\(value)", forHTTPHeaderField: key)
+            }
         }
+        request.assumesHTTP3Capable = false
+        request.cachePolicy = .reloadIgnoringLocalCacheData
         if request.value(forHTTPHeaderField: "User-Agent") == nil {
             request.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1", forHTTPHeaderField: "User-Agent")
         }
@@ -457,7 +464,9 @@ final class VeneraBridge {
         let queue = self.queue
         Self.session.dataTask(with: request) { data, response, error in
             if let error {
-                queue.async { _ = reject.call(withArguments: [error.localizedDescription]) }
+                let code = (error as NSError).code
+                let message = "\(url.host ?? "")：\(error.localizedDescription) (\(code))"
+                queue.async { _ = reject.call(withArguments: [message]) }
                 return
             }
             guard let http = response as? HTTPURLResponse else {
