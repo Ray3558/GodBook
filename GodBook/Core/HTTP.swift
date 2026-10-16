@@ -5,6 +5,7 @@ enum HTTP {
     private static var cachedSession = NetworkManager.makeSession(cached: true)
     private static var uncachedSession = NetworkManager.makeSession(cached: false)
     private static var tcpSessionStore = NetworkManager.makeSession(cached: false, tcpOnly: true)
+    private static var directSessionStore = NetworkManager.makeSession(cached: false, tcpOnly: true, direct: true)
 
     /// 一般 API 請求（有 URL 快取）
     static var session: URLSession {
@@ -24,13 +25,20 @@ enum HTTP {
         return tcpSessionStore
     }
 
+    /// 只走 TCP 且不經過任何代理的連線（最後的重試手段）
+    static var directSession: URLSession {
+        lock.lock(); defer { lock.unlock() }
+        return directSessionStore
+    }
+
     /// 代理或憑證設定變更後重新建立連線
     static func reload() {
         lock.lock()
-        let old = [cachedSession, uncachedSession, tcpSessionStore]
+        let old = [cachedSession, uncachedSession, tcpSessionStore, directSessionStore]
         cachedSession = NetworkManager.makeSession(cached: true)
         uncachedSession = NetworkManager.makeSession(cached: false)
         tcpSessionStore = NetworkManager.makeSession(cached: false, tcpOnly: true)
+        directSessionStore = NetworkManager.makeSession(cached: false, tcpOnly: true, direct: true)
         lock.unlock()
         old.forEach { $0.finishTasksAndInvalidate() }
     }

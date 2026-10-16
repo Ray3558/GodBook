@@ -430,7 +430,7 @@ final class VeneraBridge {
     // MARK: 網路
 
     private func http(_ method: String, _ urlString: String, _ headersJSON: String, _ body: String?,
-                      _ bytes: Bool, _ resolve: JSValue, _ reject: JSValue, identity: Bool = false) {
+                      _ bytes: Bool, _ resolve: JSValue, _ reject: JSValue, attempt: Int = 0) {
         guard let url = URL(string: urlString) ?? URL(string: urlString.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed.union(CharacterSet(charactersIn: "%#"))) ?? "") else {
             queue.async { _ = reject.call(withArguments: ["Invalid URL: \(urlString)"]) }
             return
@@ -449,7 +449,7 @@ final class VeneraBridge {
         request.assumesHTTP3Capable = false
         // -1103（resource exceeds maximum size）多半是系統在解壓縮時判定壓縮比過高；
         // 第一次失敗時改要求不壓縮的內容，並改用只走 TCP（不用 HTTP/3）的連線重試
-        if identity { request.setValue("identity", forHTTPHeaderField: "Accept-Encoding") }
+        if attempt > 0 { request.setValue("identity", forHTTPHeaderField: "Accept-Encoding") }
         request.cachePolicy = .reloadIgnoringLocalCacheData
         if request.value(forHTTPHeaderField: "User-Agent") == nil {
             request.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1", forHTTPHeaderField: "User-Agent")
@@ -457,14 +457,18 @@ final class VeneraBridge {
         if let body, let data = Data(base64Encoded: body) { request.httpBody = data }
 
         let queue = self.queue
-        (identity ? HTTP.tcpSession : HTTP.plainSession).dataTask(with: request) { data, response, error in
+        // 第 1 次：一般連線；第 2 次：不壓縮 + 只走 TCP；第 3 次：再加上不經過任何代理
+        let session = attempt == 0 ? HTTP.plainSession : (attempt == 1 ? HTTP.tcpSession : HTTP.directSession)
+        var taskID = 0
+        let task = session.dataTask(with: request) { data, response, error in
             if let error {
                 let code = (error as NSError).code
-                if code == -1103, !identity {
-                    self.http(method, urlString, headersJSON, body, bytes, resolve, reject, identity: true)
+                let info = TrustDelegate.metrics(for: taskID).map { " [\($0)]" } ?? ""
+                if code == -1103, attempt < 2 {
+                    self.http(method, urlString, headersJSON, body, bytes, resolve, reject, attempt: attempt + 1)
                     return
                 }
-                let message = "\(url.host ?? "")：\(error.localizedDescription) (\(code))"
+                let message = "\(url.host ?? "")：\(error.localizedDescription) (\(code))\(info) #\(attempt + 1)"
                 queue.async { _ = reject.call(withArguments: [message]) }
                 return
             }
@@ -482,7 +486,9 @@ final class VeneraBridge {
             ]
             let json = (try? JSONSerialization.data(withJSONObject: result)).map { String(decoding: $0, as: UTF8.self) } ?? "{}"
             queue.async { _ = resolve.call(withArguments: [json]) }
-        }.resume()
+        }
+        taskID = task.taskIdentifier
+        task.resume()
     }
 
     private static func setCookies(_ urlString: String, _ json: String) {
