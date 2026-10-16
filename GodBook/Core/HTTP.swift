@@ -43,23 +43,57 @@ enum HTTP {
         old.forEach { $0.finishTasksAndInvalidate() }
     }
 
+    /// 各主機目前需要的連線方式：0 = 一般、1 = 只走 TCP、2 = 自己用 Network.framework 收發。
+    /// 某個主機出現 -1103 後，之後的請求直接從有效的那一層開始，不用每次都先失敗再重試。
+    private static var hostLevels: [String: Int] = [:]
+    private static var bridgeLevels: [String: Int] = [:]
+
+    private static func level(for host: String) -> Int {
+        lock.lock(); defer { lock.unlock() }
+        return hostLevels[host] ?? 0
+    }
+
+    private static func remember(level: Int, for host: String) {
+        lock.lock(); defer { lock.unlock() }
+        if level > (hostLevels[host] ?? 0) { hostLevels[host] = level }
+    }
+
+    /// 漫畫源腳本請求的起始層級（0 一般、1 不壓縮+TCP、2 再加直連、3 自己收發）
+    static func bridgeLevel(for host: String) -> Int {
+        lock.lock(); defer { lock.unlock() }
+        return bridgeLevels[host] ?? 0
+    }
+
+    static func rememberBridge(level: Int, for host: String) {
+        lock.lock(); defer { lock.unlock() }
+        if level > (bridgeLevels[host] ?? 0) { bridgeLevels[host] = level }
+    }
+
     static func data(for request: URLRequest) async throws -> (Data, HTTPURLResponse) {
-        let data: Data, response: URLResponse
-        do {
-            (data, response) = try await session.data(for: request)
-        } catch let error as URLError where error.code.rawValue == -1103 {
-            // 某些網路環境下系統網路層會回 -1103：依序改用「只走 TCP」與「完全不用 URLSession」的連線重試
+        let host = request.url?.host ?? ""
+        var current = level(for: host)
+        while true {
             do {
-                (data, response) = try await tcpSession.data(for: request)
-            } catch let again as URLError where again.code.rawValue == -1103 {
-                let reply = try await RawHTTP.fetch(request)
-                guard let url = request.url,
-                      let http = HTTPURLResponse(url: url, statusCode: reply.status, httpVersion: "HTTP/1.1", headerFields: reply.headers) else {
-                    throw AppError.message(L("無效的伺服器回應"))
-                }
-                return (reply.body, http)
+                let result = try await perform(request, level: current)
+                remember(level: current, for: host)
+                return result
+            } catch let error as URLError where error.code.rawValue == -1103 && current < 2 {
+                // 某些網路環境下系統網路層會回 -1103：依序改用「只走 TCP」與「完全不用 URLSession」的連線重試
+                current += 1
             }
         }
+    }
+
+    private static func perform(_ request: URLRequest, level: Int) async throws -> (Data, HTTPURLResponse) {
+        if level >= 2 {
+            let reply = try await RawHTTP.fetch(request)
+            guard let url = request.url,
+                  let http = HTTPURLResponse(url: url, statusCode: reply.status, httpVersion: "HTTP/1.1", headerFields: reply.headers) else {
+                throw AppError.message(L("無效的伺服器回應"))
+            }
+            return (reply.body, http)
+        }
+        let (data, response) = try await (level == 1 ? tcpSession : session).data(for: request)
         guard let http = response as? HTTPURLResponse else { throw AppError.message(L("無效的伺服器回應")) }
         return (data, http)
     }

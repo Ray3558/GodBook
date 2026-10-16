@@ -430,11 +430,12 @@ final class VeneraBridge {
     // MARK: 網路
 
     private func http(_ method: String, _ urlString: String, _ headersJSON: String, _ body: String?,
-                      _ bytes: Bool, _ resolve: JSValue, _ reject: JSValue, attempt: Int = 0) {
+                      _ bytes: Bool, _ resolve: JSValue, _ reject: JSValue, attempt startAttempt: Int? = nil) {
         guard let url = URL(string: urlString) ?? URL(string: urlString.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed.union(CharacterSet(charactersIn: "%#"))) ?? "") else {
             queue.async { _ = reject.call(withArguments: ["Invalid URL: \(urlString)"]) }
             return
         }
+        let attempt = startAttempt ?? HTTP.bridgeLevel(for: url.host ?? "")
         var request = URLRequest(url: url)
         request.httpMethod = method
         // 這些標頭必須交給系統處理：手動指定 Accept-Encoding 會讓 URLSession 不再自動解壓縮
@@ -475,6 +476,7 @@ final class VeneraBridge {
             Task.detached {
                 do {
                     let reply = try await RawHTTP.fetch(finalRequest)
+                    HTTP.rememberBridge(level: 3, for: host)
                     deliver(reply.status, reply.headers, reply.body)
                 } catch {
                     let message = "\(host)：\(error.localizedDescription) #4"
@@ -504,6 +506,7 @@ final class VeneraBridge {
             }
             var headers: [String: String] = [:]
             for (key, value) in http.allHeaderFields { headers["\(key)".lowercased()] = "\(value)" }
+            if attempt > 0 { HTTP.rememberBridge(level: attempt, for: host) }
             deliver(http.statusCode, headers, data ?? Data())
         }
         taskID = task.taskIdentifier
