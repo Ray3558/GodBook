@@ -457,3 +457,5 @@
 "上一章" = "Previous chapter";
 "翻到章節盡頭自動進入下一章 / 上一章" = "Auto-continue to the next / previous chapter at the end";
 "禁漫：%@ 回傳的不是有效資料：%@" = "JMComic: %@ returned invalid data: %@";
+"禁漫：%@\n這個內容需要登入，請到「設定 → 禁漫」登入帳號" = "JMComic: %@\nThis content requires signing in. Go to Settings → JMComic to log in.";
+"（可能需要登入，請到「設定 → 禁漫」登入帳號）" = " (You may need to sign in: Settings → JMComic.)";

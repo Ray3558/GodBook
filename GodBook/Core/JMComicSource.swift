@@ -170,12 +170,18 @@ final class JMClient {
         let envelope = try HTTP.json(Data(text.utf8))
         guard (envelope.int("code") ?? 0) == 200 else {
             let message = envelope.string("errorMsg") ?? envelope.string("message") ?? L("請求失敗")
+            let lower = message.lowercased()
+            if envelope.int("code") == 401 || lower.contains("登入") || lower.contains("登录") || lower.contains("login") {
+                throw AppError.message(L("禁漫：%@\n這個內容需要登入，請到「設定 → 禁漫」登入帳號", "\(message)"))
+            }
             throw AppError.message(L("禁漫：%@", "\(message)"))
         }
         guard let encoded = envelope["data"] as? String else { return [:] }
         let plain = try JMCrypto.decrypt(encoded, ts: response.ts, secret: JMCrypto.dataSecret)
-        guard let object = try JSONSerialization.jsonObject(with: plain) as? [String: Any] else {
-            throw AppError.message(L("無法解析禁漫資料"))
+        guard let object = (try? JSONSerialization.jsonObject(with: plain)) as? [String: Any] else {
+            // 沒登入時，需要會員的內容常回空陣列或無法解析的資料
+            let hint = AppSettings.shared.jmAVS.isEmpty ? L("（可能需要登入，請到「設定 → 禁漫」登入帳號）") : ""
+            throw AppError.message(L("無法解析禁漫資料") + hint)
         }
         return object
     }
