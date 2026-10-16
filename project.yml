@@ -29,7 +29,7 @@ targets:
       - path: GodBook
         excludes:
           - BundledSources
-      # 內建 venera 漫畫源：由 CI 在編譯前放進此資料夾（不提交到 repo）
+      # 內建 venera 漫畫源（腳本與 index.json）
       - path: GodBook/BundledSources
         type: folder
         optional: true

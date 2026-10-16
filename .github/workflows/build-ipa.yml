@@ -29,19 +29,6 @@ jobs:
       - name: Install XcodeGen & ldid
         run: brew install xcodegen ldid
 
-      - name: Fetch built-in venera comic sources
-        run: |
-          set -e
-          rm -rf /tmp/venera-configs
-          git clone --depth 1 https://github.com/venera-app/venera-configs /tmp/venera-configs
-          mkdir -p GodBook/BundledSources
-          cp /tmp/venera-configs/index.json GodBook/BundledSources/
-          for f in /tmp/venera-configs/*.js; do
-            case "$(basename "$f")" in _*) continue;; esac
-            cp "$f" GodBook/BundledSources/
-          done
-          ls GodBook/BundledSources | wc -l
-
       - name: Generate Xcode project
         run: xcodegen generate
 
