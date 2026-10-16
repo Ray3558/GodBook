@@ -12,6 +12,7 @@ struct SettingsView: View {
     @State private var downloadSize: Int64 = 0
     @State private var confirmClear = false
     @EnvironmentObject private var downloads: DownloadManager
+    @EnvironmentObject private var venera: VeneraStore
 
     var body: some View {
         ScrollView {
@@ -19,6 +20,7 @@ struct SettingsView: View {
                 themeCard
                 backgroundCard
                 glassCard
+                veneraCard
                 nhentaiCard
                 jmCard
                 readerCard
@@ -125,6 +127,24 @@ struct SettingsView: View {
     }
 
     // MARK: 來源
+
+    private var veneraCard: some View {
+        SettingsCard(title: "漫畫源（venera）", systemImage: "puzzlepiece.extension.fill") {
+            NavigationLink {
+                VeneraSourcesView()
+            } label: {
+                HStack {
+                    Text("管理漫畫源（\(venera.sources.count) 個）")
+                    Spacer()
+                    Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            Text("相容 venera 的 JavaScript 漫畫源；內建一批來源，也可自行新增。")
+                .font(.footnote).foregroundStyle(.secondary)
+        }
+    }
 
     private var nhentaiCard: some View {
         SettingsCard(title: "nhentai", systemImage: "network") {

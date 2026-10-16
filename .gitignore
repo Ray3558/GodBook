@@ -6,3 +6,5 @@ Payload/
 build.log
 .DS_Store
 xcuserdata/
+# 內建漫畫源由 CI 於編譯時下載（來源 repo 未附授權，不放進本 repo）
+GodBook/BundledSources/

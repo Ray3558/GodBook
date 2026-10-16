@@ -20,7 +20,11 @@ struct RootView: View {
             }
             .tabItem { Label("設定", systemImage: "slider.horizontal.3") }
         }
-        .task { DownloadManager.shared.resumeQueued() }
+        .overlay { ToastOverlay() }
+        .task {
+            DownloadManager.shared.resumeQueued()
+            await VeneraStore.shared.bootstrap()
+        }
     }
 }
 

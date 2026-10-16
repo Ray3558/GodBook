@@ -13,6 +13,9 @@ actor ImageLoader {
     private var inflight: [String: Task<UIImage, Error>] = [:]
 
     private func key(for spec: ImageSpec) -> String {
+        if spec.source.isVenera {
+            return "\(spec.source.rawValue)|\(spec.comicId ?? "")|\(spec.epId ?? "")|\(spec.imageKey ?? spec.url.absoluteString)"
+        }
         var components = URLComponents(url: spec.url, resolvingAgainstBaseURL: false)
         components?.query = nil // 禁漫的 ?v=timestamp 每次不同，不應影響快取
         return "\(components?.string ?? spec.url.absoluteString)#\(spec.scramble)"
@@ -44,6 +47,12 @@ actor ImageLoader {
     /// 下載（或讀取本機）原始圖片資料；網路錯誤最多重試 3 次。
     static func rawData(_ spec: ImageSpec) async throws -> Data {
         if spec.url.isFileURL { return try Data(contentsOf: spec.url) }
+        if spec.source.isVenera {
+            return try await VeneraRuntime.shared.loadImage(
+                sourceKey: spec.source.veneraKey,
+                imageKey: spec.imageKey ?? spec.url.absoluteString,
+                comicId: spec.comicId, epId: spec.epId)
+        }
 
         var lastError: Error = AppError.message("下載圖片失敗")
         for attempt in 0..<3 {
@@ -81,14 +90,13 @@ actor ImageLoader {
 
     private static func makeRequest(_ spec: ImageSpec, url: URL) -> URLRequest {
         var request = URLRequest(url: url)
-        switch spec.source {
-        case .nhentai:
-            request.setValue("NClient/3 (GodBook iOS)", forHTTPHeaderField: "User-Agent")
-        case .jmcomic:
+        if spec.source == .jmcomic {
             request.setValue(JMClient.userAgent, forHTTPHeaderField: "User-Agent")
             request.setValue("image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8", forHTTPHeaderField: "Accept")
             request.setValue("com.JMComic3.app", forHTTPHeaderField: "X-Requested-With")
             request.setValue("https://www.cdnhjk.net", forHTTPHeaderField: "Referer")
+        } else {
+            request.setValue("NClient/3 (GodBook iOS)", forHTTPHeaderField: "User-Agent")
         }
         return request
     }

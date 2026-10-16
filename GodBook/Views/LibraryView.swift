@@ -28,11 +28,7 @@ struct LibraryView: View {
             case .downloads:
                 DownloadsView()
             case .cloud:
-                if settings.jmLoggedIn {
-                    JMCloudFavorites()
-                } else {
-                    emptyState("請先到「設定」登入禁漫帳號", systemImage: "person.crop.circle.badge.questionmark")
-                }
+                CloudFavoritesView()
             }
         }
         .themedScreen()
@@ -98,13 +94,68 @@ struct LibraryView: View {
     }
 }
 
-private struct JMCloudFavorites: View {
+/// 已登入來源的雲端收藏（禁漫 + 支援收藏的 venera 漫畫源）
+private struct CloudFavoritesView: View {
+    @EnvironmentObject private var settings: AppSettings
+    @EnvironmentObject private var venera: VeneraStore
     @StateObject private var model = PagedListModel()
+    @State private var selected: SourceKind?
+    @State private var refresh = 0
+
+    private var kinds: [SourceKind] {
+        var list: [SourceKind] = []
+        if settings.jmLoggedIn { list.append(.jmcomic) }
+        list += venera.sources.filter { $0.favorites != nil && VeneraStorage.shared.isLogged($0.key) }.map(\.kind)
+        return list
+    }
+
+    private var current: SourceKind? {
+        if let selected, kinds.contains(selected) { return selected }
+        return kinds.first
+    }
 
     var body: some View {
-        PagedComicList(model: model)
-            .task {
-                await model.start { try await JMComicSource().favorites(page: $0) }
+        VStack(spacing: 0) {
+            if kinds.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "person.crop.circle.badge.questionmark").font(.largeTitle)
+                    Text("請先到「設定」登入禁漫或 venera 漫畫源的帳號")
+                }
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 80)
+            } else {
+                if kinds.count > 1 {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(kinds) { kind in
+                                Button { selected = kind } label: {
+                                    Text(kind.title)
+                                        .font(.subheadline.weight(kind == current ? .bold : .regular))
+                                        .padding(.horizontal, 14).padding(.vertical, 8)
+                                }
+                                .buttonStyle(.plain)
+                                .glassCapsule(interactive: true)
+                            }
+                        }
+                        .padding(.horizontal, 16).padding(.vertical, 6)
+                    }
+                }
+                PagedComicList(model: model)
             }
+        }
+        .onAppear { refresh += 1 }
+        .task(id: "\(current?.rawValue ?? "")|\(refresh)") {
+            guard let kind = current else { return }
+            let loader: (Int) async throws -> ComicPageResult
+            if kind == .jmcomic {
+                let source = JMComicSource()
+                loader = { try await source.favorites(page: $0) }
+            } else {
+                let source = VeneraSource(kind: kind)
+                loader = { try await source.favorites(page: $0) }
+            }
+            await model.start(loader)
+        }
     }
 }

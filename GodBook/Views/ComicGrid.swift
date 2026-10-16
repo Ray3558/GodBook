@@ -108,11 +108,7 @@ struct SearchResultsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    Picker("排序", selection: $sortId) {
-                        ForEach(source.sortOptions) { Text($0.title).tag($0.id) }
-                    }
-                } label: { Image(systemName: "arrow.up.arrow.down") }
+                SortMenu(options: source.sortOptions, selection: sortId) { sortId = $0 }
             }
         }
         .task(id: sortId) {

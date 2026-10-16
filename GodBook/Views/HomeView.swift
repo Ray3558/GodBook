@@ -2,6 +2,7 @@ import SwiftUI
 
 struct HomeView: View {
     @EnvironmentObject private var settings: AppSettings
+    @EnvironmentObject private var venera: VeneraStore
     @StateObject private var model = PagedListModel()
     @State private var searchText = ""
     @State private var query = ""
@@ -19,6 +20,7 @@ struct HomeView: View {
         var source: SourceKind
         var query: String
         var sort: String
+        var catalog: Int
     }
 
     var body: some View {
@@ -27,40 +29,54 @@ struct HomeView: View {
         }
         .themedScreen()
         .safeAreaInset(edge: .top, spacing: 0) {
-            Picker("來源", selection: $settings.lastSource) {
-                ForEach(SourceKind.allCases) { Text($0.title).tag($0) }
-            }
-            .pickerStyle(.segmented)
-            .padding(6)
-            .glassCard(cornerRadius: 18)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 6)
+            sourceChips
         }
         .navigationTitle("GodBook")
         .navigationBarTitleDisplayMode(.inline)
-        .searchable(text: $searchText, prompt: settings.lastSource == .nhentai ? "搜尋標籤、關鍵字或 ID" : "搜尋關鍵字或車號")
+        .searchable(text: $searchText, prompt: settings.lastSource == .nhentai ? "搜尋標籤、關鍵字或 ID" : "搜尋關鍵字")
         .onSubmit(of: .search) { submitSearch() }
         .onChange(of: searchText) { _, newValue in
             if newValue.isEmpty && !query.isEmpty { query = "" }
         }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    Picker("排序", selection: Binding(
-                        get: { currentSort.id },
-                        set: { sortIds[settings.lastSource] = $0 })) {
-                        ForEach(source.sortOptions) { Text($0.title).tag($0.id) }
-                    }
-                } label: { Image(systemName: "arrow.up.arrow.down") }
+                SortMenu(options: source.sortOptions, selection: currentSort.id) {
+                    sortIds[settings.lastSource] = $0
+                }
             }
         }
         .navigationDestination(item: $directOpen) { DetailView(summary: $0) }
-        .task(id: LoadKey(source: settings.lastSource, query: query, sort: currentSort.id)) {
+        .task(id: LoadKey(source: settings.lastSource, query: query, sort: currentSort.id, catalog: venera.sources.count)) {
             let source = self.source
             let sort = currentSort
             let query = self.query
             await model.start { try await source.browse(query: query, page: $0, sort: sort) }
         }
+    }
+
+    /// 來源切換列：內建兩個來源 + 已安裝的 venera 漫畫源
+    private var sourceChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(SourceKind.all) { kind in
+                    let selected = kind == settings.lastSource
+                    Button {
+                        withAnimation(.snappy) { settings.lastSource = kind }
+                    } label: {
+                        Text(kind.title)
+                            .font(.subheadline.weight(selected ? .bold : .regular))
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                    }
+                    .buttonStyle(.plain)
+                    .glassCapsule(tint: selected ? nil : Color.clear, interactive: true)
+                    .overlay(Capsule().stroke(selected ? Color.accentColor : .clear, lineWidth: 1.5))
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 6)
+        }
+        .id(venera.sources.count) // 安裝 / 移除漫畫源後重新整理
     }
 
     private func submitSearch() {

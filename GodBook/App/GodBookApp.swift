@@ -6,6 +6,7 @@ struct GodBookApp: App {
     @StateObject private var library = LibraryStore()
     private let settings = AppSettings.shared
     private let downloads = DownloadManager.shared
+    private let venera = VeneraStore.shared
 
     var body: some Scene {
         WindowGroup {
@@ -14,6 +15,7 @@ struct GodBookApp: App {
                 .environmentObject(library)
                 .environmentObject(settings)
                 .environmentObject(downloads)
+                .environmentObject(venera)
                 .tint(theme.accent)
                 .preferredColorScheme(theme.preferredScheme)
         }

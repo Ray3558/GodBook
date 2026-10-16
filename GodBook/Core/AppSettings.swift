@@ -39,6 +39,6 @@ final class AppSettings: ObservableObject {
         let savedConcurrency = defaults.integer(forKey: "dl.concurrency")
         downloadConcurrency = savedConcurrency == 0 ? 4 : savedConcurrency
         translateTags = defaults.object(forKey: "ui.translateTags") as? Bool ?? true
-        lastSource = SourceKind(rawValue: defaults.string(forKey: "ui.lastSource") ?? "") ?? .nhentai
+        lastSource = SourceKind(rawValue: defaults.string(forKey: "ui.lastSource") ?? "nhentai")
     }
 }
