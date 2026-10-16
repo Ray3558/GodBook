@@ -448,7 +448,7 @@ final class VeneraBridge {
         }
         request.assumesHTTP3Capable = false
         // -1103（resource exceeds maximum size）多半是系統在解壓縮時判定壓縮比過高；
-        // 第一次失敗時改要求不壓縮的內容重試
+        // 第一次失敗時改要求不壓縮的內容，並改用只走 TCP（不用 HTTP/3）的連線重試
         if identity { request.setValue("identity", forHTTPHeaderField: "Accept-Encoding") }
         request.cachePolicy = .reloadIgnoringLocalCacheData
         if request.value(forHTTPHeaderField: "User-Agent") == nil {
@@ -457,7 +457,7 @@ final class VeneraBridge {
         if let body, let data = Data(base64Encoded: body) { request.httpBody = data }
 
         let queue = self.queue
-        HTTP.plainSession.dataTask(with: request) { data, response, error in
+        (identity ? HTTP.tcpSession : HTTP.plainSession).dataTask(with: request) { data, response, error in
             if let error {
                 let code = (error as NSError).code
                 if code == -1103, !identity {

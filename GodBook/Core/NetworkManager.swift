@@ -17,8 +17,10 @@ final class TrustDelegate: NSObject, URLSessionDelegate {
 
 enum NetworkManager {
     /// 依設定（系統 / 直連 / 手動代理）建立 URLSessionConfiguration
-    static func makeConfiguration(cached: Bool) -> URLSessionConfiguration {
+    static func makeConfiguration(cached: Bool, tcpOnly: Bool = false) -> URLSessionConfiguration {
         let config = URLSessionConfiguration.default
+        // QUIC（HTTP/3）需要 TLS 1.3；限制在 TLS 1.2 就只會走 TCP（HTTP/2 或 1.1）
+        if tcpOnly { config.tlsMaximumSupportedProtocolVersion = .TLSv12 }
         config.timeoutIntervalForRequest = 30
         config.httpMaximumConnectionsPerHost = 6
         config.httpCookieStorage = HTTPCookieStorage.shared
@@ -54,7 +56,7 @@ enum NetworkManager {
         return config
     }
 
-    static func makeSession(cached: Bool) -> URLSession {
-        URLSession(configuration: makeConfiguration(cached: cached), delegate: TrustDelegate(), delegateQueue: nil)
+    static func makeSession(cached: Bool, tcpOnly: Bool = false) -> URLSession {
+        URLSession(configuration: makeConfiguration(cached: cached, tcpOnly: tcpOnly), delegate: TrustDelegate(), delegateQueue: nil)
     }
 }
