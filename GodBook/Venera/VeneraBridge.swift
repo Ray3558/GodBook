@@ -430,7 +430,7 @@ final class VeneraBridge {
     // MARK: 網路
 
     private func http(_ method: String, _ urlString: String, _ headersJSON: String, _ body: String?,
-                      _ bytes: Bool, _ resolve: JSValue, _ reject: JSValue) {
+                      _ bytes: Bool, _ resolve: JSValue, _ reject: JSValue, identity: Bool = false) {
         guard let url = URL(string: urlString) ?? URL(string: urlString.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed.union(CharacterSet(charactersIn: "%#"))) ?? "") else {
             queue.async { _ = reject.call(withArguments: ["Invalid URL: \(urlString)"]) }
             return
@@ -447,6 +447,9 @@ final class VeneraBridge {
             }
         }
         request.assumesHTTP3Capable = false
+        // -1103（resource exceeds maximum size）多半是系統在解壓縮時判定壓縮比過高；
+        // 第一次失敗時改要求不壓縮的內容重試
+        if identity { request.setValue("identity", forHTTPHeaderField: "Accept-Encoding") }
         request.cachePolicy = .reloadIgnoringLocalCacheData
         if request.value(forHTTPHeaderField: "User-Agent") == nil {
             request.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1", forHTTPHeaderField: "User-Agent")
@@ -457,6 +460,10 @@ final class VeneraBridge {
         HTTP.plainSession.dataTask(with: request) { data, response, error in
             if let error {
                 let code = (error as NSError).code
+                if code == NSURLErrorDataLengthExceeded, !identity {
+                    self.http(method, urlString, headersJSON, body, bytes, resolve, reject, identity: true)
+                    return
+                }
                 let message = "\(url.host ?? "")：\(error.localizedDescription) (\(code))"
                 queue.async { _ = reject.call(withArguments: [message]) }
                 return
