@@ -17,12 +17,15 @@ struct SettingsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
+                safeModeCard
                 themeCard
                 backgroundCard
                 glassCard
                 veneraCard
-                nhentaiCard
-                jmCard
+                if !settings.safeMode {
+                    nhentaiCard
+                    jmCard
+                }
                 readerCard
                 browseCard
                 advancedCard
@@ -128,6 +131,19 @@ struct SettingsView: View {
                     .font(.footnote).foregroundStyle(.secondary)
             }
             Button(L("還原預設主題"), role: .destructive) { theme.reset() }
+        }
+    }
+
+    // MARK: 安全模式
+
+    private var safeModeCard: some View {
+        SettingsCard(title: L("安全模式"), systemImage: "shield.lefthalf.filled") {
+            Toggle(L("隱藏 18+ 內容"), isOn: Binding(
+                get: { settings.safeMode },
+                set: { value in Task { _ = await SafeMode.set(value) } }))
+            Text(L("開啟後會隱藏 18+ 來源（nhentai、禁漫與標記為 18+ 的漫畫源），以及標題或標籤帶有成人字眼的作品，包含收藏、紀錄與下載列表。若已啟用 App 鎖，關閉安全模式需要驗證。"))
+                .font(.footnote).foregroundStyle(.secondary)
+            link(L("管理 18+ 來源標記"), systemImage: "checklist") { SafeModeSourcesView() }
         }
     }
 

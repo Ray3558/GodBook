@@ -30,7 +30,7 @@ struct VeneraSourcesView: View {
         ScrollView {
             VStack(spacing: 16) {
                 Panel(title: L("顯示在首頁的來源")) {
-                    ForEach(SourceKind.all) { kind in
+                    ForEach(SourceKind.all.filter { !SafeMode.hides($0) }) { kind in
                         Toggle(isOn: Binding(
                             get: { settings.isEnabled(kind) },
                             set: { settings.setEnabled(kind, $0) })) {
@@ -45,7 +45,7 @@ struct VeneraSourcesView: View {
                     if store.isBootstrapping && store.sources.isEmpty {
                         HStack { ProgressView(); Text(L("載入內建漫畫源…")).foregroundStyle(.secondary) }
                     }
-                    ForEach(store.sources) { info in
+                    ForEach(store.sources.filter { !SafeMode.hides($0.kind) }) { info in
                         NavigationLink {
                             VeneraSourceDetailView(key: info.key)
                         } label: {
@@ -156,7 +156,7 @@ struct VeneraAddSourceView: View {
                         .textFieldStyle(.roundedBorder)
                     GlassButton(title: loading ? L("載入中…") : L("載入清單"), systemImage: "arrow.down.doc") { loadIndex() }
                         .disabled(loading)
-                    ForEach(entries) { entry in
+                    ForEach(entries.filter { !(SafeMode.isOn && SafeMode.isAdultKey($0.key)) }) { entry in
                         let installed = store.isInstalled(entry.key)
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {

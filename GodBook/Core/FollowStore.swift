@@ -52,7 +52,7 @@ final class FollowStore: ObservableObject {
 
     func check(favorites: FavoritesStore) async {
         guard !isChecking, let folderID = followedFolderID else { return }
-        let items = favorites.folders.first { $0.id == folderID }?.items ?? []
+        let items = (favorites.folders.first { $0.id == folderID }?.items ?? []).filter { !SafeMode.hides($0.summary) }
         guard !items.isEmpty else { return }
         isChecking = true
         progress = (0, items.count)

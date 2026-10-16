@@ -85,6 +85,7 @@ struct FavoriteToggleSheet: View {
 struct FavoritesView: View {
     @EnvironmentObject private var favorites: FavoritesStore
     @EnvironmentObject private var follow: FollowStore
+    @ObservedObject private var safe = AppSettings.shared
     @State private var folderID: UUID?
     @State private var editing = false
     @State private var selection = Set<String>()
@@ -112,7 +113,7 @@ struct FavoritesView: View {
 
     private var items: [FavoriteItem] {
         guard let id = currentID else { return [] }
-        let sorted = favorites.sortedItems(id)
+        let sorted = favorites.sortedItems(id).filter { !SafeMode.hides($0.summary) }
         guard let tagFilter else { return sorted }
         return sorted.filter { $0.tags.contains(tagFilter) }
     }

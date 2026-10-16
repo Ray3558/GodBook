@@ -41,6 +41,9 @@ final class AppSettings: ObservableObject {
     @Stored("list.showStatus", true) var showTileStatus: Bool
     @Stored("list.blocked", [String]()) var blockedWords: [String]
     @Stored("list.blockedComments", [String]()) var blockedCommentWords: [String]
+    @Stored("safe.enabled", false) var safeMode: Bool                      // 安全模式：隱藏 18+
+    @Stored("safe.marked", [String]()) var adultMarked: [String]           // 使用者額外標記為 18+ 的 venera 來源 key
+    @Stored("safe.unmarked", [String]()) var adultUnmarked: [String]       // 使用者取消內建 18+ 標記的來源 key
     @Stored("ui.language", "system") var language: String                  // system | zh-Hant | zh-Hans | en
     @Stored("ui.initialTab", 0) var initialTab: Int                       // 0 探索、1 書庫、2 設定
     @Stored("ui.reverseChapters", false) var reverseChapters: Bool
@@ -52,10 +55,11 @@ final class AppSettings: ObservableObject {
 
     /// 目前啟用的來源（依序：nhentai、禁漫、已安裝的 venera 漫畫源）
     var enabledSources: [SourceKind] {
-        SourceKind.all.filter { !disabledSources.contains($0.rawValue) }
+        SourceKind.all.filter { isEnabled($0) }
     }
 
-    func isEnabled(_ kind: SourceKind) -> Bool { !disabledSources.contains(kind.rawValue) }
+    /// 被使用者停用，或在安全模式下被隱藏的來源都視為未啟用
+    func isEnabled(_ kind: SourceKind) -> Bool { !disabledSources.contains(kind.rawValue) && !SafeMode.hides(kind) }
 
     func setEnabled(_ kind: SourceKind, _ enabled: Bool) {
         if enabled { disabledSources.remove(kind.rawValue) } else { disabledSources.insert(kind.rawValue) }

@@ -53,6 +53,7 @@ struct HomeView: View {
         var filters: [String: String]
         var paging: Bool
         var blocked: [String]
+        var safe: Bool
     }
 
     var body: some View {
@@ -99,6 +100,9 @@ struct HomeView: View {
                         Label(L("聚合搜尋（多個來源）"), systemImage: "magnifyingglass.circle")
                     }
                     Button { openFromClipboard() } label: { Label(L("從剪貼簿開啟連結"), systemImage: "doc.on.clipboard") }
+                    Button { Task { _ = await SafeMode.set(!settings.safeMode) } } label: {
+                        Label(settings.safeMode ? L("關閉安全模式") : L("開啟安全模式"), systemImage: "shield.lefthalf.filled")
+                    }
                 } label: { Image(systemName: "ellipsis.circle") }
                 if source.sortOptions.count > 1 {
                     SortMenu(options: source.sortOptions, selection: currentSort.id) {
@@ -121,7 +125,7 @@ struct HomeView: View {
             deepLink.summary = nil
         }
         .task(id: LoadKey(source: settings.lastSource, query: query, sort: currentSort.id, catalog: catalogState,
-                          filters: currentFilters, paging: settings.listPaging, blocked: settings.blockedWords)) {
+                          filters: currentFilters, paging: settings.listPaging, blocked: settings.blockedWords, safe: settings.safeMode)) {
             // 目前來源被停用時不送出請求，改切到第一個啟用的來源
             guard settings.isEnabled(settings.lastSource) else {
                 if let first = settings.enabledSources.first { settings.lastSource = first }
@@ -166,7 +170,9 @@ struct HomeView: View {
     @ViewBuilder
     private var suggestionContent: some View {
         let text = searchText.trimmingCharacters(in: .whitespaces)
-        if text.isEmpty {
+        if settings.safeMode {
+            EmptyView()
+        } else if text.isEmpty {
             ForEach(settings.searchHistory.prefix(8), id: \.self) { item in
                 Label(item, systemImage: "clock.arrow.circlepath").searchCompletion(item)
             }

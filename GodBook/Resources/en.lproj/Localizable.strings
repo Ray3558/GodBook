@@ -442,3 +442,13 @@
 "nhentai 的 API 流程參考 NClientV3 (Apache-2.0)；禁漫的 API 協定與下載流程參考 jmcomic (MIT) 與 jmcomic-downloader (MIT)；漫畫源執行環境與功能設計參考 venera。" = "The nhentai API flow is based on NClientV3 (Apache-2.0); the JMComic API protocol and download flow are based on jmcomic (MIT) and jmcomic-downloader (MIT); the comic-source runtime and feature design are based on venera.";
 "標籤翻譯來自 EhTagTranslation Database（經 venera 整理）。" = "Tag translations come from the EhTagTranslation Database (curated by venera).";
 "本 App 僅為第三方客戶端，內容版權屬原網站與作者所有。" = "This app is only a third-party client. Content copyright belongs to the original sites and authors.";
+"18+ 來源標記" = "18+ Source Marks";
+"固定" = "Fixed";
+"安全模式" = "Safe Mode";
+"標記為 18+ 的來源在安全模式下會從首頁、搜尋與設定中隱藏。" = "Sources marked 18+ are hidden from Home, search and settings while Safe Mode is on.";
+"管理 18+ 來源標記" = "Manage 18+ source marks";
+"視為 18+ 的來源" = "Sources treated as 18+";
+"開啟安全模式" = "Turn on Safe Mode";
+"關閉安全模式" = "Turn off Safe Mode";
+"隱藏 18+ 內容" = "Hide 18+ content";
+"開啟後會隱藏 18+ 來源（nhentai、禁漫與標記為 18+ 的漫畫源），以及標題或標籤帶有成人字眼的作品，包含收藏、紀錄與下載列表。若已啟用 App 鎖，關閉安全模式需要驗證。" = "When on, 18+ sources (nhentai, JMComic and comic sources marked 18+) and works whose title or tags contain adult keywords are hidden, including in favorites, history and downloads. If App Lock is enabled, turning Safe Mode off requires authentication.";

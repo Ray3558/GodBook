@@ -3,12 +3,13 @@ import SwiftUI
 struct FollowView: View {
     @EnvironmentObject private var favorites: FavoritesStore
     @EnvironmentObject private var follow: FollowStore
+    @ObservedObject private var safe = AppSettings.shared
 
     private var folder: FavoriteFolder? { favorites.folders.first { $0.id == follow.followedFolderID } }
 
     private var items: [FavoriteItem] {
         guard let folder else { return [] }
-        return folder.items.sorted { a, b in
+        return folder.items.filter { !SafeMode.hides($0.summary) }.sorted { a, b in
             let ua = follow.infos[a.id]?.hasUpdate == true, ub = follow.infos[b.id]?.hasUpdate == true
             if ua != ub { return ua }
             return (follow.infos[a.id]?.checkedAt ?? .distantPast) > (follow.infos[b.id]?.checkedAt ?? .distantPast)

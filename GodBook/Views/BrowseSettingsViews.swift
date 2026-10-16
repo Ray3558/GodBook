@@ -121,7 +121,7 @@ struct SourceOrderView: View {
 
     var body: some View {
         List {
-            ForEach(items) { kind in
+            ForEach(items.filter { !SafeMode.hides($0) }) { kind in
                 HStack {
                     Text(kind.title)
                     Spacer()
@@ -139,5 +139,49 @@ struct SourceOrderView: View {
         .navigationTitle(L("來源順序"))
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { items = SourceKind.all }
+    }
+}
+
+/// 安全模式：選擇哪些漫畫源視為 18+
+struct SafeModeSourcesView: View {
+    @EnvironmentObject private var settings: AppSettings
+    @EnvironmentObject private var venera: VeneraStore
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                GlassPanel(title: L("視為 18+ 的來源")) {
+                    HStack {
+                        Text("nhentai"); Spacer()
+                        Text(L("固定")).font(.caption).foregroundStyle(.secondary)
+                    }
+                    HStack {
+                        Text(L("禁漫")); Spacer()
+                        Text(L("固定")).font(.caption).foregroundStyle(.secondary)
+                    }
+                    ForEach(venera.sources) { info in
+                        Toggle(info.name, isOn: Binding(
+                            get: { SafeMode.isAdultKey(info.key) },
+                            set: { set(info.key, $0) }))
+                    }
+                    Text(L("標記為 18+ 的來源在安全模式下會從首頁、搜尋與設定中隱藏。"))
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
+            }
+            .padding(16)
+        }
+        .themedScreen()
+        .navigationTitle(L("18+ 來源標記"))
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func set(_ key: String, _ adult: Bool) {
+        var marked = settings.adultMarked.filter { $0 != key }
+        var unmarked = settings.adultUnmarked.filter { $0 != key }
+        let builtin = SafeMode.builtinAdultKeys.contains(key)
+        if adult && !builtin { marked.append(key) }
+        if !adult && builtin { unmarked.append(key) }
+        settings.adultMarked = marked
+        settings.adultUnmarked = unmarked
     }
 }

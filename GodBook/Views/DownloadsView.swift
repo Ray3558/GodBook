@@ -17,6 +17,7 @@ struct ShareSheet: UIViewControllerRepresentable {
 
 struct DownloadsView: View {
     @EnvironmentObject private var downloads: DownloadManager
+    @ObservedObject private var safe = AppSettings.shared
     @State private var exporting: String?
     @State private var exported: ExportedFile?
     @State private var errorMessage: String?
@@ -35,7 +36,7 @@ struct DownloadsView: View {
                 .padding(.top, 80)
             } else {
                 LazyVStack(spacing: 10) {
-                    ForEach(downloads.comics) { comic in row(comic) }
+                    ForEach(downloads.comics.filter { !SafeMode.hides($0) }) { comic in row(comic) }
                 }
                 .padding(12)
             }

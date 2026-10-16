@@ -3,13 +3,16 @@ import SwiftUI
 /// 圖片收藏牆
 struct ImageFavoritesView: View {
     @EnvironmentObject private var store: ImageFavoritesStore
+    @ObservedObject private var safe = AppSettings.shared
     @State private var selected: ImageFavorite?
+
+    private var visibleItems: [ImageFavorite] { store.items.filter { !SafeMode.hides($0.summary) } }
 
     private let columns = [GridItem(.adaptive(minimum: 110), spacing: 8)]
 
     var body: some View {
         Group {
-            if store.items.isEmpty {
+            if visibleItems.isEmpty {
                 VStack(spacing: 12) {
                     Image(systemName: "photo.on.rectangle").font(.largeTitle)
                     Text(L("還沒有收藏的圖片"))
@@ -22,7 +25,7 @@ struct ImageFavoritesView: View {
                 .padding(.horizontal, 24)
             } else {
                 LazyVGrid(columns: columns, spacing: 8) {
-                    ForEach(store.items) { item in
+                    ForEach(visibleItems) { item in
                         Button { selected = item } label: {
                             RemoteImageView(spec: ImageSpec(url: store.fileURL(item), source: item.summary.source), fill: true, placeholderAspect: 0.75)
                                 .frame(maxWidth: .infinity)

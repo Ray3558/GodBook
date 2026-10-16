@@ -20,7 +20,7 @@ struct LibraryView: View {
             case .follow:
                 FollowView()
             case .history:
-                if library.history.isEmpty {
+                if visibleHistory.isEmpty {
                     emptyState(L("沒有閱讀紀錄"), systemImage: "clock")
                 } else {
                     historyList
@@ -40,7 +40,7 @@ struct LibraryView: View {
         .navigationTitle(L("書庫"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if tab == .history && !library.history.isEmpty {
+            if tab == .history && !visibleHistory.isEmpty {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(L("清除"), role: .destructive) { library.clearHistory() }
                 }
@@ -73,9 +73,11 @@ struct LibraryView: View {
         }
     }
 
+    private var visibleHistory: [HistoryEntry] { library.history.filter { !SafeMode.hides($0.summary) } }
+
     private var historyList: some View {
         LazyVStack(spacing: 10) {
-            ForEach(library.history) { entry in
+            ForEach(visibleHistory) { entry in
                 NavigationLink(value: entry.summary) {
                     HStack(spacing: 12) {
                         RemoteImageView(spec: entry.summary.coverURL.map { ImageSpec(url: $0, source: entry.summary.source) },
