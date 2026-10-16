@@ -2,7 +2,7 @@ import SwiftUI
 
 struct LibraryView: View {
     enum Tab: String, CaseIterable, Identifiable {
-        case favorites = "收藏", history = "歷史", downloads = "下載", cloud = "雲端"
+        case favorites = "收藏", history = "歷史", downloads = "下載", images = "圖片", cloud = "雲端"
         var id: String { rawValue }
     }
 
@@ -27,6 +27,8 @@ struct LibraryView: View {
                 }
             case .downloads:
                 DownloadsView()
+            case .images:
+                ImageFavoritesView()
             case .cloud:
                 CloudFavoritesView()
             }

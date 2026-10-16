@@ -13,6 +13,8 @@ struct DetailView: View {
     @EnvironmentObject private var theme: ThemeStore
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var downloads: DownloadManager
+    @EnvironmentObject private var prefsStore: ReaderPrefsStore
+    @EnvironmentObject private var imageFavorites: ImageFavoritesStore
     @State private var detail: ComicDetail?
     @State private var isOffline = false
     @State private var errorMessage: String?
@@ -67,6 +69,8 @@ struct DetailView: View {
                 .environmentObject(library)
                 .environmentObject(theme)
                 .environmentObject(settings)
+                .environmentObject(prefsStore)
+                .environmentObject(imageFavorites)
         }
     }
 

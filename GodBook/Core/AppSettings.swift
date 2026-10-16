@@ -1,17 +1,5 @@
 import Foundation
 
-enum ReaderMode: String, CaseIterable, Identifiable {
-    case vertical, horizontal, horizontalRTL
-    var id: String { rawValue }
-    var title: String {
-        switch self {
-        case .vertical: "垂直捲動"
-        case .horizontal: "左右翻頁"
-        case .horizontalRTL: "右到左翻頁（日漫）"
-        }
-    }
-}
-
 /// 使用者可調整的來源與閱讀設定。
 final class AppSettings: ObservableObject {
     static let shared = AppSettings()

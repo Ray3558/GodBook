@@ -212,10 +212,7 @@ struct SettingsView: View {
 
     private var readerCard: some View {
         SettingsCard(title: "閱讀", systemImage: "book.fill") {
-            Picker("閱讀方式", selection: $settings.readerMode) {
-                ForEach(ReaderMode.allCases) { Text($0.title).tag($0) }
-            }
-            .pickerStyle(.menu)
+            link("閱讀設定（模式、手勢、縮放、音量鍵…）", systemImage: "slider.horizontal.below.rectangle") { ReaderSettingsPage() }
         }
     }
 
