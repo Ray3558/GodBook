@@ -193,7 +193,8 @@ struct RemoteImageView: View {
         ZStack {
             if let image {
                 if fill {
-                    Image(uiImage: image).resizable().scaledToFill()
+                    // 用透明底色決定尺寸、圖片只當內容裁切；否則橫幅等寬圖會把版面撐出螢幕
+                    Color.clear.overlay { Image(uiImage: image).resizable().scaledToFill() }.clipped()
                 } else {
                     Image(uiImage: image).resizable().scaledToFit()
                 }
