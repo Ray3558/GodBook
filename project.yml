@@ -59,6 +59,10 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
+        CFBundleURLTypes:
+          - CFBundleURLName: com.godbook.app
+            CFBundleURLSchemes:
+              - godbook
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
         # 設為 false 才會啟用 iOS 26 的液態玻璃外觀

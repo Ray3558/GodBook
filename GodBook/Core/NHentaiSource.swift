@@ -60,6 +60,31 @@ struct NHentaiSource: ComicSource {
 
     var supportsTagSuggestions: Bool { true }
 
+    var capabilities: SourceCapabilities { SourceCapabilities(comments: true) }
+
+    func loadComments(_ context: CommentContext, page: Int, replyTo: String?) async throws -> CommentPage {
+        guard page == 1, replyTo == nil else { return CommentPage(comments: [], maxPage: 1) }
+        let (data, response) = try await HTTP.data(for: try request("galleries/\(context.summary.sid)/comments"))
+        guard response.statusCode == 200 else { throw AppError.http(response.statusCode) }
+        let object = try JSONSerialization.jsonObject(with: data)
+        let list = (object as? [[String: Any]])
+            ?? ((object as? [String: Any])?["result"] as? [[String: Any]])
+            ?? ((object as? [String: Any])?["comments"] as? [[String: Any]]) ?? []
+        let comments = list.map { item -> ComicComment in
+            let poster = item["poster"] as? [String: Any] ?? [:]
+            var avatar: URL?
+            if let path = poster.string("avatar_url") {
+                avatar = path.hasPrefix("http") ? URL(string: path) : URL(string: "https://i1.\(host)/\(path.trimmingCharacters(in: CharacterSet(charactersIn: "/")))")
+            }
+            let time = (item["post_date"] as? Double).map {
+                Date(timeIntervalSince1970: $0).formatted(date: .abbreviated, time: .shortened)
+            }
+            return ComicComment(id: item.string("id") ?? UUID().uuidString, userName: poster.string("username") ?? "?",
+                                avatar: avatar, content: item.string("body") ?? "", time: time)
+        }
+        return CommentPage(comments: comments, maxPage: 1)
+    }
+
     func filterGroups(query: String) -> [FilterGroup] {
         [FilterGroup(id: "lang", title: "語言", kind: .select,
                      options: [FilterOption(value: "none", title: "不限"), FilterOption(value: "chinese", title: "中文"),
@@ -117,6 +142,7 @@ struct NHentaiSource: ComicSource {
         stats.append("ID \(summary.sid)")
 
         var result = base
+        result.tags = tags.map(\.name)
         if let cover = (json["cover"] as? [String: Any])?.string("path"), let url = thumbURL(cover) {
             result.coverURL = url
         }
@@ -129,7 +155,8 @@ struct NHentaiSource: ComicSource {
             chapters: [Chapter(id: summary.sid, title: "全部頁面")],
             related: json.dicts("related").compactMap(self.summary(from:)),
             pageCount: pages.count,
-            preloadedPages: pages
+            preloadedPages: pages,
+            url: "https://\(host)/g/\(summary.sid)/"
         )
     }
 

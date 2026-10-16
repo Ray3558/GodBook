@@ -561,7 +561,14 @@ function __describe(key) {
     info.search = { options: __optList(s.search.optionList), hasLoad: typeof s.search.load === 'function', enableTags: !!s.search.enableTagsSuggestions };
   }
   if (s.favorites) {
-    info.favorites = { multiFolder: !!s.favorites.multiFolder };
+    var f = s.favorites;
+    info.favorites = {
+      multiFolder: !!f.multiFolder,
+      canToggle: typeof f.addOrDelFavorite === 'function',
+      hasFolders: typeof f.loadFolders === 'function',
+      canAddFolder: typeof f.addFolder === 'function',
+      canDeleteFolder: typeof f.deleteFolder === 'function'
+    };
   }
   if (s.account) {
     var a = s.account;
@@ -584,6 +591,22 @@ function __describe(key) {
     });
   }
   if (s.comic && s.comic.idMatch) info.idMatch = String(s.comic.idMatch);
+  if (s.comic) {
+    var c = s.comic;
+    info.comic = {
+      comments: typeof c.loadComments === 'function',
+      sendComment: typeof c.sendComment === 'function',
+      chapterComments: typeof c.loadChapterComments === 'function',
+      sendChapterComment: typeof c.sendChapterComment === 'function',
+      like: typeof c.likeComic === 'function',
+      rating: typeof c.starRating === 'function',
+      thumbnails: typeof c.loadThumbnails === 'function',
+      likeComment: typeof c.likeComment === 'function',
+      voteComment: typeof c.voteComment === 'function',
+      hasLink: !!(c.link && typeof c.link.linkToId === 'function'),
+      linkDomains: (c.link && c.link.domains) ? c.link.domains.map(String) : []
+    };
+  }
   return info;
 }
 
@@ -691,7 +714,11 @@ async function __loadInfo(key, id) {
     likesCount: r.likesCount == null ? null : r.likesCount,
     commentCount: r.commentCount == null ? null : r.commentCount,
     uploader: r.uploader || null, updateTime: r.updateTime || null, uploadTime: r.uploadTime || null,
-    stars: r.stars == null ? null : r.stars, url: r.url || null, maxPage: r.maxPage == null ? null : r.maxPage
+    stars: r.stars == null ? null : r.stars, url: r.url || null, maxPage: r.maxPage == null ? null : r.maxPage,
+    subId: r.subId == null ? null : String(r.subId),
+    isLiked: r.isLiked == null ? null : !!r.isLiked,
+    isFavorite: r.isFavorite == null ? null : !!r.isFavorite,
+    thumbnails: Array.isArray(r.thumbnails) ? r.thumbnails.map(String) : null
   };
 }
 
@@ -771,6 +798,102 @@ async function __settingCallback(key, name) {
   var d = ComicSource.sources[key].settings[name];
   if (d && typeof d.callback === 'function') await d.callback();
   return true;
+}
+
+function __timeText(t) {
+  if (t === null || t === undefined) return null;
+  if (typeof t === 'number') {
+    var d = new Date(t < 10000000000 ? t * 1000 : t);
+    var p = function (n) { return n < 10 ? '0' + n : '' + n; };
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+  return String(t);
+}
+function __normComment(c) {
+  return {
+    id: c.id == null ? '' : String(c.id), userName: c.userName || '', avatar: c.avatar || null,
+    content: c.content || '', time: __timeText(c.time),
+    replyCount: c.replyCount == null ? null : c.replyCount,
+    isLiked: c.isLiked == null ? null : !!c.isLiked,
+    score: c.score == null ? null : c.score,
+    voteStatus: c.voteStatus == null ? null : c.voteStatus
+  };
+}
+async function __comments(key, comicId, subId, epId, page, replyTo) {
+  var c = ComicSource.sources[key].comic;
+  var r = (epId !== null && epId !== undefined)
+    ? await c.loadChapterComments(comicId, epId, page, replyTo)
+    : await c.loadComments(comicId, subId, page, replyTo);
+  return { comments: (r.comments || []).map(__normComment), maxPage: r.maxPage == null ? null : r.maxPage };
+}
+async function __sendComment(key, comicId, subId, epId, content, replyTo) {
+  var c = ComicSource.sources[key].comic;
+  if (epId !== null && epId !== undefined) await c.sendChapterComment(comicId, epId, content, replyTo);
+  else await c.sendComment(comicId, subId, content, replyTo);
+  return true;
+}
+async function __likeComment(key, comicId, subId, commentId, isLike) {
+  await ComicSource.sources[key].comic.likeComment(comicId, subId, commentId, isLike);
+  return true;
+}
+async function __voteComment(key, comicId, subId, commentId, isUp, isCancel) {
+  var r = await ComicSource.sources[key].comic.voteComment(comicId, subId, commentId, isUp, isCancel);
+  return typeof r === 'number' ? r : 0;
+}
+async function __likeComic(key, id, isLike) {
+  await ComicSource.sources[key].comic.likeComic(id, isLike);
+  return true;
+}
+async function __rate(key, id, rating) {
+  await ComicSource.sources[key].comic.starRating(id, rating);
+  return true;
+}
+async function __thumbnails(key, id, next) {
+  var r = await ComicSource.sources[key].comic.loadThumbnails(id, next);
+  return { thumbnails: (r.thumbnails || []).map(String), next: r.next == null ? null : String(r.next) };
+}
+async function __favFolders(key, comicId) {
+  var f = ComicSource.sources[key].favorites;
+  if (typeof f.loadFolders !== 'function') return { folders: [{ id: '0', name: '收藏' }], favorited: [] };
+  var r = await f.loadFolders(comicId);
+  var folders = [];
+  __entries(r.folders).forEach(function (e) { folders.push({ id: String(e[0]), name: String(e[1]) }); });
+  return { folders: folders, favorited: (r.favorited || []).map(String) };
+}
+async function __favToggle(key, comicId, folderId, adding, favoriteId) {
+  await ComicSource.sources[key].favorites.addOrDelFavorite(comicId, folderId, adding, favoriteId);
+  return true;
+}
+async function __favAddFolder(key, name) {
+  await ComicSource.sources[key].favorites.addFolder(name);
+  return true;
+}
+async function __favDelFolder(key, id) {
+  await ComicSource.sources[key].favorites.deleteFolder(id);
+  return true;
+}
+function __linkToId(key, text) {
+  var s = ComicSource.sources[key];
+  var c = s.comic;
+  if (!c) return null;
+  text = String(text).trim();
+  if (c.link && typeof c.link.linkToId === 'function') {
+    var host = '';
+    var m = text.match(/^https?:\/\/([^\/?#]+)/i);
+    if (m) host = m[1].toLowerCase();
+    var domains = (c.link.domains || []).map(function (d) { return String(d).toLowerCase(); });
+    if (host && domains.some(function (d) { return host === d || host.endsWith('.' + d); })) {
+      var id = c.link.linkToId(text);
+      if (id) return String(id);
+    }
+  }
+  if (c.idMatch) {
+    try {
+      var r = new RegExp(c.idMatch).exec(text);
+      if (r) return String(r[1] !== undefined ? r[1] : r[0]);
+    } catch (e) {}
+  }
+  return null;
 }
 """#
 }

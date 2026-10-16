@@ -1,6 +1,44 @@
 import SwiftUI
 import UIKit
 
+/// venera 縮圖語法：`網址@x=起-迄&y=起-迄`（單位為像素；省略的軸取整張）
+enum ThumbnailCrop {
+    struct Parsed {
+        var base: String
+        var x: ClosedRange<CGFloat>?
+        var y: ClosedRange<CGFloat>?
+        var suffix: String
+    }
+
+    static func parse(_ key: String) -> Parsed {
+        guard let at = key.range(of: "@", options: .backwards) else { return Parsed(base: key, suffix: "") }
+        let tail = key[at.upperBound...]
+        guard tail.hasPrefix("x=") || tail.hasPrefix("y=") else { return Parsed(base: key, suffix: "") }
+        var parsed = Parsed(base: String(key[..<at.lowerBound]), suffix: String(key[at.lowerBound...]))
+        for part in tail.split(separator: "&") {
+            let pair = part.split(separator: "=", maxSplits: 1).map(String.init)
+            guard pair.count == 2 else { continue }
+            let range = pair[1].split(separator: "-").compactMap { Double($0) }
+            guard range.count == 2, range[1] > range[0] else { continue }
+            let closed = CGFloat(range[0])...CGFloat(range[1])
+            if pair[0] == "x" { parsed.x = closed } else if pair[0] == "y" { parsed.y = closed }
+        }
+        return parsed
+    }
+
+    static func apply(_ parsed: Parsed, to image: UIImage) -> UIImage {
+        guard parsed.x != nil || parsed.y != nil, let cg = image.cgImage else { return image }
+        let scale = image.scale
+        let width = CGFloat(cg.width), height = CGFloat(cg.height)
+        let x0 = max(0, (parsed.x?.lowerBound ?? 0) * (parsed.x == nil ? 1 : 1))
+        let x1 = min(width, parsed.x?.upperBound ?? width)
+        let y0 = max(0, parsed.y?.lowerBound ?? 0)
+        let y1 = min(height, parsed.y?.upperBound ?? height)
+        guard x1 > x0, y1 > y0, let cropped = cg.cropping(to: CGRect(x: x0, y: y0, width: x1 - x0, height: y1 - y0)) else { return image }
+        return UIImage(cgImage: cropped, scale: scale, orientation: image.imageOrientation)
+    }
+}
+
 actor ImageLoader {
     static let shared = ImageLoader()
 
@@ -14,14 +52,18 @@ actor ImageLoader {
 
     static func cacheKey(_ spec: ImageSpec) -> String {
         if spec.source.isVenera {
-            return "\(spec.source.rawValue)|\(spec.comicId ?? "")|\(spec.epId ?? "")|\(spec.imageKey ?? spec.url.absoluteString)"
+            let base = ThumbnailCrop.parse(spec.imageKey ?? spec.url.absoluteString).base
+            return "\(spec.source.rawValue)|\(spec.comicId ?? "")|\(spec.epId ?? "")|\(base)"
         }
         var components = URLComponents(url: spec.url, resolvingAgainstBaseURL: false)
         components?.query = nil // 禁漫的 ?v=timestamp 每次不同，不應影響快取
         return "\(components?.string ?? spec.url.absoluteString)#\(spec.scramble)"
     }
 
-    private func key(for spec: ImageSpec) -> String { Self.cacheKey(spec) }
+    /// 記憶體快取鍵：同一張底圖的不同裁切要分開
+    private func key(for spec: ImageSpec) -> String {
+        Self.cacheKey(spec) + (spec.source.isVenera ? ThumbnailCrop.parse(spec.imageKey ?? "").suffix : "")
+    }
 
     func clearMemory() { cache.removeAllObjects() }
 
@@ -42,6 +84,10 @@ actor ImageLoader {
     private static func fetch(_ spec: ImageSpec) async throws -> UIImage {
         let data = try await rawData(spec)
         guard var image = UIImage(data: data) else { throw AppError.message("無法解碼圖片") }
+        if spec.source.isVenera, let key = spec.imageKey {
+            let parsed = ThumbnailCrop.parse(key)
+            if !parsed.suffix.isEmpty { image = ThumbnailCrop.apply(parsed, to: image) }
+        }
         if spec.scramble > 1, let restored = Descrambler.descramble(image, num: spec.scramble) {
             image = restored
         }
@@ -62,7 +108,7 @@ actor ImageLoader {
         if spec.source.isVenera {
             return try await VeneraRuntime.shared.loadImage(
                 sourceKey: spec.source.veneraKey,
-                imageKey: spec.imageKey ?? spec.url.absoluteString,
+                imageKey: ThumbnailCrop.parse(spec.imageKey ?? spec.url.absoluteString).base,
                 comicId: spec.comicId, epId: spec.epId)
         }
 

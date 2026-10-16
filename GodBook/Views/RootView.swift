@@ -2,6 +2,7 @@ import SwiftUI
 
 struct RootView: View {
     @State private var tab = AppSettings.shared.initialTab
+    @ObservedObject private var deepLink = DeepLink.shared
 
     var body: some View {
         TabView(selection: $tab) {
@@ -26,6 +27,7 @@ struct RootView: View {
             .tag(2)
         }
         .overlay { ToastOverlay() }
+        .onChange(of: deepLink.summary) { _, value in if value != nil { tab = 0 } }
         .task {
             DownloadManager.shared.resumeQueued()
             await VeneraStore.shared.bootstrap()

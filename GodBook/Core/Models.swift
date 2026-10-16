@@ -107,6 +107,67 @@ struct ComicDetail: Codable {
     var pageCount: Int?
     /// nhentai 的詳情已含所有頁面；禁漫需再向章節 API 取得
     var preloadedPages: [ReaderPage]?
+    /// 評論 API 需要的額外識別碼（venera 的 subId）
+    var subId: String?
+    /// 對應的網頁連結（分享用）
+    var url: String?
+    var isLiked: Bool?
+    var stars: Double?
+    /// 作品本身提供的縮圖網址；來源另有分頁縮圖 API 時為 nil
+    var thumbnails: [String]?
+    var isRemoteFavorite: Bool?
+}
+
+struct ComicComment: Identifiable, Hashable {
+    var id: String
+    var userName: String
+    var avatar: URL?
+    /// 原始內容：可能是純文字，也可能含 a / b / i / u / s / br / span / img 的 HTML
+    var content: String
+    var time: String?
+    var replyCount: Int?
+    var score: Int?
+    var isLiked: Bool?
+    /// 1 = 已按讚(推)、-1 = 已按倒讚(噓)、0 = 無
+    var voteStatus: Int?
+    /// 來源已一併提供的回覆（不必再向網路要）
+    var replies: [ComicComment] = []
+}
+
+struct CommentPage {
+    var comments: [ComicComment]
+    var maxPage: Int?
+}
+
+struct CommentContext {
+    var summary: ComicSummary
+    var subId: String?
+    /// 不為 nil 代表「章節評論」
+    var chapterId: String?
+}
+
+struct SourceCapabilities {
+    var comments = false
+    var sendComments = false
+    var chapterComments = false
+    var sendChapterComments = false
+    var likeComic = false
+    var rating = false
+    var thumbnails = false
+    var likeComment = false
+    var voteComment = false
+    var remoteFavorites = false
+}
+
+struct RemoteFolder: Hashable, Identifiable {
+    var id: String
+    var name: String
+}
+
+struct RemoteFavoriteState {
+    var folders: [RemoteFolder]
+    var favorited: Set<String>
+    var canManageFolders: Bool
 }
 
 struct ComicPageResult {
@@ -162,6 +223,19 @@ struct CategorySection: Identifiable, Hashable {
 
 protocol ComicSource {
     var kind: SourceKind { get }
+    var capabilities: SourceCapabilities { get }
+    func loadComments(_ context: CommentContext, page: Int, replyTo: String?) async throws -> CommentPage
+    func sendComment(_ context: CommentContext, content: String, replyTo: String?) async throws
+    func likeComment(_ context: CommentContext, commentId: String, like: Bool) async throws
+    func voteComment(_ context: CommentContext, commentId: String, up: Bool, cancel: Bool) async throws -> Int
+    func setLiked(_ summary: ComicSummary, liked: Bool) async throws
+    /// stars 為 0–10（App 以 5 顆星呈現，1 顆星 = 2）
+    func rate(_ summary: ComicSummary, stars: Int) async throws
+    func loadThumbnails(_ summary: ComicSummary, next: String?) async throws -> (urls: [String], next: String?)
+    func remoteFavorites(for summary: ComicSummary) async throws -> RemoteFavoriteState
+    func setRemoteFavorite(_ summary: ComicSummary, folderId: String, adding: Bool) async throws
+    func addRemoteFolder(_ name: String) async throws
+    func deleteRemoteFolder(_ id: String) async throws
     var sortOptions: [SortOption] { get }
     /// 分類 / 排行頁的內容；沒有則為空
     func categorySections() -> [CategorySection]
@@ -174,7 +248,22 @@ protocol ComicSource {
     func pages(of detail: ComicDetail, chapter: Chapter) async throws -> [ReaderPage]
 }
 
+private let unsupported = AppError.message("這個來源不支援此功能")
+
 extension ComicSource {
+    var capabilities: SourceCapabilities { SourceCapabilities() }
+    func loadComments(_ context: CommentContext, page: Int, replyTo: String?) async throws -> CommentPage { throw unsupported }
+    func sendComment(_ context: CommentContext, content: String, replyTo: String?) async throws { throw unsupported }
+    func likeComment(_ context: CommentContext, commentId: String, like: Bool) async throws { throw unsupported }
+    func voteComment(_ context: CommentContext, commentId: String, up: Bool, cancel: Bool) async throws -> Int { throw unsupported }
+    func setLiked(_ summary: ComicSummary, liked: Bool) async throws { throw unsupported }
+    func rate(_ summary: ComicSummary, stars: Int) async throws { throw unsupported }
+    func loadThumbnails(_ summary: ComicSummary, next: String?) async throws -> (urls: [String], next: String?) { throw unsupported }
+    func remoteFavorites(for summary: ComicSummary) async throws -> RemoteFavoriteState { throw unsupported }
+    func setRemoteFavorite(_ summary: ComicSummary, folderId: String, adding: Bool) async throws { throw unsupported }
+    func addRemoteFolder(_ name: String) async throws { throw unsupported }
+    func deleteRemoteFolder(_ id: String) async throws { throw unsupported }
+
     func filterGroups(query: String) -> [FilterGroup] { [] }
     func categorySections() -> [CategorySection] { [] }
     var supportsTagSuggestions: Bool { false }

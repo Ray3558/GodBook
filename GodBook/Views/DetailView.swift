@@ -32,6 +32,7 @@ struct DetailView: View {
                 header
                 if let detail {
                     actions(detail)
+                    DetailExtraBar(detail: detail)
                     if let text = detail.description, !text.isEmpty {
                         Text(text)
                             .font(.callout)
@@ -40,6 +41,9 @@ struct DetailView: View {
                             .glassCard()
                     }
                     if !detail.tags.isEmpty { tagSection(detail) }
+                    ThumbnailStrip(detail: detail) { index in
+                        reader = ReaderRoute(detail: detail, chapterIndex: 0, startPage: index)
+                    }
                     if detail.chapters.count > 1 { chapterSection(detail) }
                     if !detail.related.isEmpty { relatedSection(detail) }
                 } else if let errorMessage {

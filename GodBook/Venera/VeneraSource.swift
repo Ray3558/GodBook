@@ -33,6 +33,82 @@ struct VeneraSource: ComicSource {
 
     var supportsTagSuggestions: Bool { info?.search?.enableTags == true }
 
+    var capabilities: SourceCapabilities {
+        guard let info else { return SourceCapabilities() }
+        let c = info.comic
+        return SourceCapabilities(
+            comments: c?.comments == true, sendComments: c?.sendComment == true,
+            chapterComments: c?.chapterComments == true, sendChapterComments: c?.sendChapterComment == true,
+            likeComic: c?.like == true, rating: c?.rating == true, thumbnails: c?.thumbnails == true,
+            likeComment: c?.likeComment == true, voteComment: c?.voteComment == true,
+            remoteFavorites: info.favorites?.canToggle == true)
+    }
+
+    private func mapComments(_ value: Any?) -> [ComicComment] {
+        ((value as? [[String: Any]]) ?? []).map { item in
+            ComicComment(id: (item["id"] as? String) ?? "", userName: (item["userName"] as? String) ?? "",
+                         avatar: (item["avatar"] as? String).flatMap(VeneraURL.make),
+                         content: (item["content"] as? String) ?? "", time: item["time"] as? String,
+                         replyCount: item["replyCount"] as? Int, score: item["score"] as? Int,
+                         isLiked: item["isLiked"] as? Bool, voteStatus: item["voteStatus"] as? Int)
+        }
+    }
+
+    func loadComments(_ context: CommentContext, page: Int, replyTo: String?) async throws -> CommentPage {
+        let r = try await invoke("__comments", [context.summary.sid, context.subId, context.chapterId, page, replyTo])
+        return CommentPage(comments: mapComments(r["comments"]), maxPage: r["maxPage"] as? Int)
+    }
+
+    func sendComment(_ context: CommentContext, content: String, replyTo: String?) async throws {
+        _ = try await invoke("__sendComment", [context.summary.sid, context.subId, context.chapterId, content, replyTo])
+    }
+
+    func likeComment(_ context: CommentContext, commentId: String, like: Bool) async throws {
+        _ = try await runtime.callValue(key, "__likeComment", [context.summary.sid, context.subId, commentId, like])
+    }
+
+    func voteComment(_ context: CommentContext, commentId: String, up: Bool, cancel: Bool) async throws -> Int {
+        let value = try await runtime.callValue(key, "__voteComment", [context.summary.sid, context.subId, commentId, up, cancel])
+        return (value as? Int) ?? 0
+    }
+
+    func setLiked(_ summary: ComicSummary, liked: Bool) async throws {
+        _ = try await runtime.callValue(key, "__likeComic", [summary.sid, liked])
+    }
+
+    func rate(_ summary: ComicSummary, stars: Int) async throws {
+        _ = try await runtime.callValue(key, "__rate", [summary.sid, stars])
+    }
+
+    func loadThumbnails(_ summary: ComicSummary, next: String?) async throws -> (urls: [String], next: String?) {
+        let r = try await invoke("__thumbnails", [summary.sid, next])
+        return ((r["thumbnails"] as? [String]) ?? [], r["next"] as? String)
+    }
+
+    func remoteFavorites(for summary: ComicSummary) async throws -> RemoteFavoriteState {
+        let r = try await invoke("__favFolders", [summary.sid])
+        let folders = ((r["folders"] as? [[String: Any]]) ?? []).compactMap { item -> RemoteFolder? in
+            guard let id = item["id"] as? String else { return nil }
+            return RemoteFolder(id: id, name: (item["name"] as? String) ?? id)
+        }
+        let favorited = Set((r["favorited"] as? [String]) ?? [])
+        let canManage = info?.favorites?.canAddFolder == true && info?.favorites?.multiFolder == true
+        return RemoteFavoriteState(folders: folders.isEmpty ? [RemoteFolder(id: "0", name: "收藏")] : folders,
+                                   favorited: favorited, canManageFolders: canManage)
+    }
+
+    func setRemoteFavorite(_ summary: ComicSummary, folderId: String, adding: Bool) async throws {
+        _ = try await runtime.callValue(key, "__favToggle", [summary.sid, folderId, adding, nil])
+    }
+
+    func addRemoteFolder(_ name: String) async throws {
+        _ = try await runtime.callValue(key, "__favAddFolder", [name])
+    }
+
+    func deleteRemoteFolder(_ id: String) async throws {
+        _ = try await runtime.callValue(key, "__favDelFolder", [id])
+    }
+
     private var hidden: Set<String> { VeneraVisibility.hidden(key) }
 
     var sortOptions: [SortOption] {
@@ -223,8 +299,15 @@ struct VeneraSource: ComicSource {
         let related = ((r["recommend"] as? [[String: Any]]) ?? []).compactMap(makeSummary)
         let description = (r["description"] as? String).flatMap { $0.isEmpty ? nil : $0 }
 
-        return ComicDetail(summary: base, description: description, authors: authors, tags: tags,
-                           stats: stats, chapters: chapters, related: related, pageCount: r["maxPage"] as? Int)
+        var detail = ComicDetail(summary: base, description: description, authors: authors, tags: tags,
+                                 stats: stats, chapters: chapters, related: related, pageCount: r["maxPage"] as? Int)
+        detail.subId = r["subId"] as? String
+        detail.url = r["url"] as? String
+        detail.isLiked = r["isLiked"] as? Bool
+        detail.stars = r["stars"] as? Double
+        detail.thumbnails = r["thumbnails"] as? [String]
+        detail.isRemoteFavorite = r["isFavorite"] as? Bool
+        return detail
     }
 
     func pages(of detail: ComicDetail, chapter: Chapter) async throws -> [ReaderPage] {

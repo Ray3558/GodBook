@@ -21,6 +21,7 @@ struct ReaderView: View {
     @State private var shareImage: ShareImageItem?
     @State private var volume = VolumeKeyObserver()
     @State private var autoTurnTick = 0
+    @State private var showChapterComments = false
 
     private let autoTurnTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
@@ -90,6 +91,10 @@ struct ReaderView: View {
             ReaderChapterSheet(chapters: detail.chapters, currentIndex: chapterIndex) { selectChapter($0) }
         }
         .sheet(item: $shareImage) { item in ShareItemsSheet(items: [item.image]) }
+        .sheet(isPresented: $showChapterComments) {
+            CommentsSheet(kind: detail.summary.source,
+                          context: CommentContext(summary: detail.summary, subId: detail.subId, chapterId: chapter.id))
+        }
     }
 
     // MARK: 內容
@@ -179,6 +184,9 @@ struct ReaderView: View {
             Menu {
                 Button { collect(current) } label: {
                     Label(isCollected(current) ? "取消收藏這張圖" : "收藏這張圖", systemImage: isCollected(current) ? "heart.slash" : "heart")
+                }
+                if SourceRegistry.source(detail.summary.source).capabilities.chapterComments {
+                    Button { showChapterComments = true } label: { Label("章節評論", systemImage: "text.bubble") }
                 }
                 Button { Task { await saveToPhotos() } } label: { Label("儲存到相簿", systemImage: "square.and.arrow.down") }
                 Button { Task { await share() } } label: { Label("分享這張圖", systemImage: "square.and.arrow.up") }

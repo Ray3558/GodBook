@@ -207,6 +207,41 @@ struct JMComicSource: ComicSource {
 
     private let client = JMClient.shared
 
+    var capabilities: SourceCapabilities { SourceCapabilities(comments: true, remoteFavorites: true) }
+
+    func loadComments(_ context: CommentContext, page: Int, replyTo: String?) async throws -> CommentPage {
+        let result = try await client.json("/forum", query: [
+            URLQueryItem(name: "mode", value: "all"),
+            URLQueryItem(name: "page", value: String(page)),
+            URLQueryItem(name: "aid", value: context.summary.sid),
+        ])
+        func map(_ item: [String: Any]) -> ComicComment {
+            let replies = result.isEmpty ? [] : ((item["replys"] as? [[String: Any]]) ?? []).map(map)
+            let name = item.string("nickname").flatMap { $0.isEmpty ? nil : $0 } ?? item.string("username") ?? "?"
+            return ComicComment(id: item.string("CID") ?? UUID().uuidString, userName: name, avatar: nil,
+                                content: item.string("content") ?? "", time: item.string("addtime"),
+                                replyCount: replies.isEmpty ? nil : replies.count,
+                                score: item.int("likes"), replies: replies)
+        }
+        let list = result.dicts("list").map(map)
+        let total = result.int("total") ?? 0
+        return CommentPage(comments: list, maxPage: total > 0 ? max(1, Int((Double(total) / 10).rounded(.up))) : nil)
+    }
+
+    func remoteFavorites(for summary: ComicSummary) async throws -> RemoteFavoriteState {
+        let json = try await client.json("/album", query: [URLQueryItem(name: "id", value: summary.sid)])
+        let favorited = (json["is_favorite"] as? Bool) == true || json.string("is_favorite") == "true"
+        return RemoteFavoriteState(folders: [RemoteFolder(id: "0", name: "禁漫收藏")],
+                                   favorited: favorited ? ["0"] : [], canManageFolders: false)
+    }
+
+    func setRemoteFavorite(_ summary: ComicSummary, folderId: String, adding: Bool) async throws {
+        let state = try await remoteFavorites(for: summary)
+        // 禁漫的收藏 API 是「切換」；狀態已符合就不用再送
+        guard state.favorited.contains(folderId) != adding else { return }
+        _ = try await client.json("/favorite", form: ["aid": summary.sid])
+    }
+
     private func coverURL(_ id: String) -> URL? {
         URL(string: "https://\(client.imageDomain)/media/albums/\(id)_3x4.jpg")
     }
@@ -309,7 +344,7 @@ struct JMComicSource: ComicSource {
 
         let description = json.string("description").flatMap { $0.isEmpty ? nil : $0 }
         let related = json.dicts("related_list").compactMap(self.summary(from:))
-        return ComicDetail(
+        var detail = ComicDetail(
             summary: base,
             description: description,
             authors: authors,
@@ -319,6 +354,9 @@ struct JMComicSource: ComicSource {
             related: related,
             pageCount: json.int("total_photos")
         )
+        detail.url = "https://jmcomic.me/album/\(summary.sid)"
+        detail.isRemoteFavorite = (json["is_favorite"] as? Bool) ?? (json.string("is_favorite") == "true")
+        return detail
     }
 
     func pages(of detail: ComicDetail, chapter: Chapter) async throws -> [ReaderPage] {

@@ -30,6 +30,7 @@ struct GodBookApp: App {
                 .environmentObject(localLibrary)
                 .tint(theme.accent)
                 .preferredColorScheme(theme.preferredScheme)
+                .onOpenURL { DeepLink.shared.handle($0) }
                 .overlay {
                     // 鎖定中，或 App 鎖開啟時在多工畫面遮住內容
                     if lock.locked || (settings.appLockEnabled && scenePhase != .active) { LockOverlay() }

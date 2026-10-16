@@ -13,6 +13,7 @@ struct HomeView: View {
     @State private var showCategories = false
     @State private var aggregatedQuery: AggregatedRoute?
     @State private var tagSuggestions: [TagSuggestionRow] = []
+    @ObservedObject private var deepLink = DeepLink.shared
 
     struct AggregatedRoute: Hashable, Identifiable {
         let query: String
@@ -93,9 +94,12 @@ struct HomeView: View {
                 if !source.categorySections().isEmpty {
                     Button { showCategories = true } label: { Image(systemName: "square.grid.3x3") }
                 }
-                Button { aggregatedQuery = AggregatedRoute(query: searchText.trimmingCharacters(in: .whitespaces)) } label: {
-                    Image(systemName: "magnifyingglass.circle")
-                }
+                Menu {
+                    Button { aggregatedQuery = AggregatedRoute(query: searchText.trimmingCharacters(in: .whitespaces)) } label: {
+                        Label("聚合搜尋（多個來源）", systemImage: "magnifyingglass.circle")
+                    }
+                    Button { openFromClipboard() } label: { Label("從剪貼簿開啟連結", systemImage: "doc.on.clipboard") }
+                } label: { Image(systemName: "ellipsis.circle") }
                 if source.sortOptions.count > 1 {
                     SortMenu(options: source.sortOptions, selection: currentSort.id) {
                         sortIds[settings.lastSource] = $0
@@ -111,6 +115,11 @@ struct HomeView: View {
         .navigationDestination(isPresented: $showCategories) { CategoriesView(source: settings.lastSource) }
         .navigationDestination(item: $aggregatedQuery) { AggregatedSearchView(query: $0.query) }
         .navigationDestination(item: $directOpen) { DetailView(summary: $0) }
+        .onChange(of: deepLink.summary) { _, value in
+            guard let value else { return }
+            directOpen = value
+            deepLink.summary = nil
+        }
         .task(id: LoadKey(source: settings.lastSource, query: query, sort: currentSort.id, catalog: catalogState,
                           filters: currentFilters, paging: settings.listPaging, blocked: settings.blockedWords)) {
             // 目前來源被停用時不送出請求，改切到第一個啟用的來源
@@ -202,6 +211,13 @@ struct HomeView: View {
         let text = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
         remember(text)
+        // 貼上的是漫畫連結（或車號）時直接開啟
+        if LinkResolver.looksLikeLink(text) || text.lowercased().hasPrefix("jm") {
+            Task {
+                if let found = await LinkResolver.resolve(text) { directOpen = found } else { query = text }
+            }
+            return
+        }
         if settings.defaultSearchTarget == "aggregated" {
             aggregatedQuery = AggregatedRoute(query: text)
             return
@@ -212,6 +228,17 @@ struct HomeView: View {
             return
         }
         query = text
+    }
+
+    private func openFromClipboard() {
+        guard let text = UIPasteboard.general.string, !text.isEmpty else {
+            ToastCenter.shared.show("剪貼簿是空的")
+            return
+        }
+        Task {
+            if let found = await LinkResolver.resolve(text) { directOpen = found }
+            else { ToastCenter.shared.show("剪貼簿的內容不是可辨識的漫畫連結") }
+        }
     }
 
     private func remember(_ text: String) {

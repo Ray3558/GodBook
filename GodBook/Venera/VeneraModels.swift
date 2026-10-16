@@ -15,7 +15,26 @@ struct VeneraInfo: Codable, Identifiable {
     }
     struct Ranking: Codable { let options: [[String]] }
     struct Search: Codable { let options: [Option]; let hasLoad: Bool; let enableTags: Bool? }
-    struct Favorites: Codable { let multiFolder: Bool }
+    struct Favorites: Codable {
+        let multiFolder: Bool
+        let canToggle: Bool?
+        let hasFolders: Bool?
+        let canAddFolder: Bool?
+        let canDeleteFolder: Bool?
+    }
+    struct ComicCaps: Codable {
+        let comments: Bool
+        let sendComment: Bool
+        let chapterComments: Bool
+        let sendChapterComment: Bool
+        let like: Bool
+        let rating: Bool
+        let thumbnails: Bool
+        let likeComment: Bool
+        let voteComment: Bool
+        let hasLink: Bool
+        let linkDomains: [String]
+    }
     struct Account: Codable {
         let hasLogin: Bool; let webviewUrl: String?
         let cookieFields: [String]?; let registerWebsite: String?
@@ -41,6 +60,7 @@ struct VeneraInfo: Codable, Identifiable {
     let account: Account?
     let settings: [Setting]
     let idMatch: String?
+    let comic: ComicCaps?
 
     var id: String { key }
     var kind: SourceKind { SourceKind(rawValue: "v:" + key) }
