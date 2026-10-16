@@ -86,7 +86,7 @@
 "純色" = "Solid";
 "漸層" = "Gradient";
 "圖片" = "Image";
-"跟隨系統" = "Follow System";
+"跟隨系統" = "Follow system";
 "淺色" = "Light";
 "深色" = "Dark";
 "櫻花" = "Sakura";
@@ -172,7 +172,7 @@
 "詳細" = "Detailed";
 "卡片大小" = "Card size";
 "分頁模式（關閉則連續捲動載入）" = "Paged mode (off = continuous scrolling)";
-"卡片上顯示「已收藏 / 已讀」狀態" = "Show "favorited / read" status on cards";
+"卡片上顯示「已收藏 / 已讀」狀態" = "Show \"favorited / read\" status on cards";
 "章節列表預設反轉順序" = "Reverse chapter order by default";
 "搜尋" = "Search";
 "預設搜尋目標" = "Default search target";
@@ -247,7 +247,7 @@
 "正序" = "Ascending";
 "相關作品" = "Related";
 "還沒有下載內容" = "Nothing downloaded yet";
-"在作品詳情頁按「下載」即可離線閱讀" = "Tap "Download" on a comic's page to read offline";
+"在作品詳情頁按「下載」即可離線閱讀" = "Tap \"Download\" on a comic's page to read offline";
 "匯出失敗" = "Export failed";
 "%@ · %@/%@ 章完成" = "%@ · %@/%@ chapters done";
 "匯出" = "Export";
@@ -300,7 +300,7 @@
 "剪貼簿是空的" = "The clipboard is empty";
 "剪貼簿的內容不是可辨識的漫畫連結" = "The clipboard content is not a recognizable comic link";
 "還沒有收藏的圖片" = "No favorite images yet";
-"閱讀時點右上角「…」→「收藏這張圖」，或在閱讀設定開啟雙擊收藏" = "While reading, tap "…" at the top right → "Favorite This Image", or enable double-tap to favorite in reader settings";
+"閱讀時點右上角「…」→「收藏這張圖」，或在閱讀設定開啟雙擊收藏" = "While reading, tap \"…\" at the top right → \"Favorite This Image\", or enable double-tap to favorite in reader settings";
 "%@ · 第 %@ 頁" = "%@ · Page %@";
 "已儲存到相簿" = "Saved to Photos";
 "無法載入漫畫資料" = "Unable to load comic data";
@@ -313,7 +313,7 @@
 "匯入漫畫" = "Import Comics";
 "支援 CBZ / ZIP / EPUB / PDF 與圖片資料夾（含子資料夾分章）。" = "Supports CBZ / ZIP / EPUB / PDF and image folders (subfolders become chapters).";
 "還沒有匯入的漫畫" = "No imported comics yet";
-"匯入「%@」失敗：%@" = "Failed to import "%@": %@";
+"匯入「%@」失敗：%@" = "Failed to import \"%@\": %@";
 "閱讀方式" = "Reading Mode";
 "翻頁動畫" = "Page animation";
 "操作" = "Controls";
@@ -442,5 +442,3 @@
 "nhentai 的 API 流程參考 NClientV3 (Apache-2.0)；禁漫的 API 協定與下載流程參考 jmcomic (MIT) 與 jmcomic-downloader (MIT)；漫畫源執行環境與功能設計參考 venera。" = "The nhentai API flow is based on NClientV3 (Apache-2.0); the JMComic API protocol and download flow are based on jmcomic (MIT) and jmcomic-downloader (MIT); the comic-source runtime and feature design are based on venera.";
 "標籤翻譯來自 EhTagTranslation Database（經 venera 整理）。" = "Tag translations come from the EhTagTranslation Database (curated by venera).";
 "本 App 僅為第三方客戶端，內容版權屬原網站與作者所有。" = "This app is only a third-party client. Content copyright belongs to the original sites and authors.";
-"語言" = "Language";
-"跟隨系統" = "Follow system";
