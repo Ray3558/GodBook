@@ -21,6 +21,7 @@ private struct Panel<Content: View>: View {
 
 struct VeneraSourcesView: View {
     @EnvironmentObject private var store: VeneraStore
+    @EnvironmentObject private var settings: AppSettings
     @State private var showAdd = false
     @State private var showLog = false
     @State private var restoring = false
@@ -28,6 +29,18 @@ struct VeneraSourcesView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
+                Panel(title: "顯示在首頁的來源") {
+                    ForEach(SourceKind.all) { kind in
+                        Toggle(isOn: Binding(
+                            get: { settings.isEnabled(kind) },
+                            set: { settings.setEnabled(kind, $0) })) {
+                            Text(kind.title)
+                        }
+                    }
+                    Text("關閉後該來源不會出現在首頁與雲端收藏，也不會發出任何請求；已安裝的腳本與設定都會保留，隨時可重新開啟。")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
+
                 Panel(title: "已安裝（\(store.sources.count)）") {
                     if store.isBootstrapping && store.sources.isEmpty {
                         HStack { ProgressView(); Text("載入內建漫畫源…").foregroundStyle(.secondary) }
@@ -68,7 +81,7 @@ struct VeneraSourcesView: View {
             .padding(16)
         }
         .themedScreen()
-        .navigationTitle("漫畫源")
+        .navigationTitle("來源管理")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showAdd) { NavigationStack { VeneraAddSourceView() } }
         .sheet(isPresented: $showLog) { NavigationStack { VeneraLogView() } }

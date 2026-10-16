@@ -106,7 +106,7 @@ private struct CloudFavoritesView: View {
         var list: [SourceKind] = []
         if settings.jmLoggedIn { list.append(.jmcomic) }
         list += venera.sources.filter { $0.favorites != nil && VeneraStorage.shared.isLogged($0.key) }.map(\.kind)
-        return list
+        return list.filter { settings.isEnabled($0) }
     }
 
     private var current: SourceKind? {

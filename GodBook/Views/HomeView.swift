@@ -33,7 +33,18 @@ struct HomeView: View {
 
     var body: some View {
         ScrollView {
-            PagedComicList(model: model)
+            if settings.enabledSources.isEmpty {
+                VStack(spacing: 10) {
+                    Image(systemName: "square.slash").font(.largeTitle)
+                    Text("沒有啟用的來源")
+                    Text("到「設定 → 來源管理」開啟至少一個來源").font(.footnote)
+                }
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 80)
+            } else {
+                PagedComicList(model: model)
+            }
         }
         .themedScreen()
         .safeAreaInset(edge: .top, spacing: 0) {
@@ -55,6 +66,11 @@ struct HomeView: View {
         }
         .navigationDestination(item: $directOpen) { DetailView(summary: $0) }
         .task(id: LoadKey(source: settings.lastSource, query: query, sort: currentSort.id, catalog: catalogState)) {
+            // 目前來源被停用時不送出請求，改切到第一個啟用的來源
+            guard settings.isEnabled(settings.lastSource) else {
+                if let first = settings.enabledSources.first { settings.lastSource = first }
+                return
+            }
             let source = self.source
             let sort = currentSort
             let query = self.query
@@ -66,7 +82,7 @@ struct HomeView: View {
     private var sourceChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                ForEach(SourceKind.all) { kind in
+                ForEach(settings.enabledSources) { kind in
                     let selected = kind == settings.lastSource
                     Button {
                         withAnimation(.snappy) { settings.lastSource = kind }
@@ -84,7 +100,7 @@ struct HomeView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 6)
         }
-        .id(venera.sources.count) // 安裝 / 移除漫畫源後重新整理
+        .id(venera.sources.count * 1000 + settings.disabledSources.count) // 安裝 / 移除 / 停用後重新整理
     }
 
     private func submitSearch() {

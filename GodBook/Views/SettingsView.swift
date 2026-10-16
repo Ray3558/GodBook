@@ -129,12 +129,12 @@ struct SettingsView: View {
     // MARK: 來源
 
     private var veneraCard: some View {
-        SettingsCard(title: "漫畫源（venera）", systemImage: "puzzlepiece.extension.fill") {
+        SettingsCard(title: "來源管理", systemImage: "puzzlepiece.extension.fill") {
             NavigationLink {
                 VeneraSourcesView()
             } label: {
                 HStack {
-                    Text("管理漫畫源（\(venera.sources.count) 個）")
+                    Text("啟用 / 停用來源、管理 venera 漫畫源（\(venera.sources.count) 個）")
                     Spacer()
                     Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary)
                 }
