@@ -89,7 +89,11 @@ struct DownloadsView: View {
             .glassCard(cornerRadius: 20, interactive: true)
             .contextMenu {
                 if finished > 0 {
-                    Button { export(comic) } label: { Label("匯出 CBZ", systemImage: "square.and.arrow.up") }
+                    Menu {
+                        ForEach(ExportFormat.allCases) { format in
+                            Button(format.title) { export(comic, format) }
+                        }
+                    } label: { Label("匯出", systemImage: "square.and.arrow.up") }
                 }
                 Button(role: .destructive) { downloads.removeComic(comic) } label: {
                     Label("刪除下載", systemImage: "trash")
@@ -99,11 +103,11 @@ struct DownloadsView: View {
         .buttonStyle(.plain)
     }
 
-    private func export(_ comic: ComicSummary) {
+    private func export(_ comic: ComicSummary, _ format: ExportFormat) {
         exporting = comic.id
         Task {
             do {
-                let url = try await Task.detached { try CBZExporter.export(comic) }.value
+                let url = try await Task.detached { try ComicExport.export(comic, as: format) }.value
                 exported = ExportedFile(url: url)
             } catch {
                 errorMessage = error.localizedDescription

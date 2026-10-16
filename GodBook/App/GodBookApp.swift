@@ -9,6 +9,9 @@ struct GodBookApp: App {
     private let venera = VeneraStore.shared
     private let readerPrefs = ReaderPrefsStore.shared
     private let imageFavorites = ImageFavoritesStore.shared
+    private let favoritesStore = FavoritesStore.shared
+    private let followStore = FollowStore.shared
+    private let localLibrary = LocalLibrary.shared
     @StateObject private var lock = AppLock.shared
     @Environment(\.scenePhase) private var scenePhase
 
@@ -22,6 +25,9 @@ struct GodBookApp: App {
                 .environmentObject(venera)
                 .environmentObject(readerPrefs)
                 .environmentObject(imageFavorites)
+                .environmentObject(favoritesStore)
+                .environmentObject(followStore)
+                .environmentObject(localLibrary)
                 .tint(theme.accent)
                 .preferredColorScheme(theme.preferredScheme)
                 .overlay {

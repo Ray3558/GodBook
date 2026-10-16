@@ -24,6 +24,7 @@ struct RootView: View {
         .task {
             DownloadManager.shared.resumeQueued()
             await VeneraStore.shared.bootstrap()
+            await FollowStore.shared.checkIfDue(favorites: FavoritesStore.shared)
         }
     }
 }

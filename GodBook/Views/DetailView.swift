@@ -14,6 +14,9 @@ struct DetailView: View {
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var downloads: DownloadManager
     @EnvironmentObject private var prefsStore: ReaderPrefsStore
+    @EnvironmentObject private var favorites: FavoritesStore
+    @EnvironmentObject private var follow: FollowStore
+    @State private var showFavoriteSheet = false
     @EnvironmentObject private var imageFavorites: ImageFavoritesStore
     @State private var detail: ComicDetail?
     @State private var isOffline = false
@@ -57,13 +60,14 @@ struct DetailView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    library.toggleFavorite(shown)
+                    showFavoriteSheet = true
                 } label: {
-                    Image(systemName: library.isFavorite(shown) ? "heart.fill" : "heart")
+                    Image(systemName: favorites.isFavorite(shown) ? "heart.fill" : "heart")
                 }
             }
         }
         .task { await load() }
+        .sheet(isPresented: $showFavoriteSheet) { FavoriteToggleSheet(summary: shown) }
         .fullScreenCover(item: $reader) { route in
             ReaderView(route: route, onClose: { reader = nil })
                 .environmentObject(library)
@@ -106,7 +110,7 @@ struct DetailView: View {
         let resumeIndex = progress.flatMap { entry in detail.chapters.firstIndex { $0.id == entry.chapterId } }
         return VStack(spacing: 12) {
             readButtons(detail, progress: progress, resumeIndex: resumeIndex)
-            downloadAllButton(detail)
+            if !shown.source.isLocal { downloadAllButton(detail) }
             if isOffline {
                 Label("離線模式：顯示已下載的內容", systemImage: "wifi.slash")
                     .font(.caption).foregroundStyle(.secondary)
@@ -264,6 +268,7 @@ struct DetailView: View {
             let loaded = try await SourceRegistry.source(summary.source).detail(of: summary)
             detail = loaded
             isOffline = false
+            follow.markRead(summary, chapterCount: loaded.chapters.count, latestTitle: loaded.chapters.last?.title ?? "")
             // 已下載過的作品，順手更新本機詳情快取
             if !downloads.items(for: summary).isEmpty { DownloadStorage.saveDetail(loaded) }
         } catch {

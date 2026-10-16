@@ -8,14 +8,18 @@ struct SourceKind: Hashable, Codable, Identifiable, RawRepresentable {
 
     static let nhentai = SourceKind(rawValue: "nhentai")
     static let jmcomic = SourceKind(rawValue: "jmcomic")
+    /// 使用者匯入的本機漫畫
+    static let local = SourceKind(rawValue: "local")
 
     var id: String { rawValue }
     var isVenera: Bool { rawValue.hasPrefix("v:") }
+    var isLocal: Bool { self == .local }
     var veneraKey: String { String(rawValue.dropFirst(2)) }
 
     var title: String {
         if self == .nhentai { return "nhentai" }
         if self == .jmcomic { return "禁漫" }
+        if self == .local { return "本機" }
         return VeneraRegistry.shared.info(veneraKey)?.name ?? veneraKey
     }
 
@@ -121,6 +125,7 @@ enum SourceRegistry {
     static func source(_ kind: SourceKind) -> ComicSource {
         if kind == .nhentai { return NHentaiSource() }
         if kind == .jmcomic { return JMComicSource() }
+        if kind == .local { return LocalSource() }
         return VeneraSource(kind: kind)
     }
 }

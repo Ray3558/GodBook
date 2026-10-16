@@ -2,23 +2,23 @@ import SwiftUI
 
 struct LibraryView: View {
     enum Tab: String, CaseIterable, Identifiable {
-        case favorites = "收藏", history = "歷史", downloads = "下載", images = "圖片", cloud = "雲端"
+        case favorites = "收藏", follow = "追蹤", history = "歷史", downloads = "下載"
+        case local = "本機", images = "圖片", cloud = "雲端"
         var id: String { rawValue }
     }
 
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var settings: AppSettings
+    @EnvironmentObject private var follow: FollowStore
     @State private var tab = Tab.favorites
 
     var body: some View {
         ScrollView {
             switch tab {
             case .favorites:
-                if library.favorites.isEmpty {
-                    emptyState("還沒有收藏", systemImage: "heart")
-                } else {
-                    ComicGrid(items: library.favorites, showSourceBadge: true).padding(.vertical, 8)
-                }
+                FavoritesView()
+            case .follow:
+                FollowView()
             case .history:
                 if library.history.isEmpty {
                     emptyState("沒有閱讀紀錄", systemImage: "clock")
@@ -27,6 +27,8 @@ struct LibraryView: View {
                 }
             case .downloads:
                 DownloadsView()
+            case .local:
+                LocalComicsView()
             case .images:
                 ImageFavoritesView()
             case .cloud:
@@ -34,16 +36,7 @@ struct LibraryView: View {
             }
         }
         .themedScreen()
-        .safeAreaInset(edge: .top, spacing: 0) {
-            Picker("書庫", selection: $tab) {
-                ForEach(Tab.allCases) { Text($0.rawValue).tag($0) }
-            }
-            .pickerStyle(.segmented)
-            .padding(6)
-            .glassCard(cornerRadius: 18)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 6)
-        }
+        .safeAreaInset(edge: .top, spacing: 0) { tabChips }
         .navigationTitle("書庫")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -52,6 +45,31 @@ struct LibraryView: View {
                     Button("清除", role: .destructive) { library.clearHistory() }
                 }
             }
+        }
+    }
+
+    private var tabChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(Tab.allCases) { item in
+                    let selected = item == tab
+                    Button { withAnimation(.snappy) { tab = item } } label: {
+                        HStack(spacing: 4) {
+                            Text(item.rawValue)
+                            if item == .follow, follow.updateCount > 0 {
+                                Text("\(follow.updateCount)").font(.caption2.weight(.bold)).padding(.horizontal, 5)
+                                    .background(Color.red, in: Capsule()).foregroundStyle(.white)
+                            }
+                        }
+                        .font(.subheadline.weight(selected ? .bold : .regular))
+                        .padding(.horizontal, 14).padding(.vertical, 8)
+                    }
+                    .buttonStyle(.plain)
+                    .glassCapsule(tint: selected ? nil : Color.clear, interactive: true)
+                    .overlay(Capsule().stroke(selected ? Color.accentColor : .clear, lineWidth: 1.5))
+                }
+            }
+            .padding(.horizontal, 16).padding(.vertical, 6)
         }
     }
 
