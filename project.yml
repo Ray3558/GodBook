@@ -1,0 +1,53 @@
+name: GodBook
+options:
+  bundleIdPrefix: com.godbook
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    TARGETED_DEVICE_FAMILY: "1,2"
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+
+targets:
+  GodBook:
+    type: application
+    platform: iOS
+    sources:
+      - path: GodBook
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.godbook.app
+        PRODUCT_NAME: GodBook
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        INFOPLIST_FILE: Config/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_STYLE: Manual
+        DEVELOPMENT_TEAM: ""
+    info:
+      path: Config/Info.plist
+      properties:
+        CFBundleDisplayName: GodBook
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        UILaunchScreen: {}
+        ITSAppUsesNonExemptEncryption: false
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        # 設為 false 才會啟用 iOS 26 的液態玻璃外觀
+        UIDesignRequiresCompatibility: false
+        NSPhotoLibraryUsageDescription: 選擇自訂背景圖片

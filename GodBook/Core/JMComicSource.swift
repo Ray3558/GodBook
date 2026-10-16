@@ -1,0 +1,333 @@
+import Foundation
+
+/// 禁漫行動端 API 客戶端，協定移植自 jmcomic (MIT)：
+/// 以 timestamp 產生 token / tokenparam，回應為 Base64 + AES-ECB 加密的 JSON。
+final class JMClient {
+    static let shared = JMClient()
+
+    private let builtinDomains = [
+        "www.cdnhjk.net", "www.cdngwc.cc", "www.cdngwc.net", "www.cdngwc.club",
+    ]
+    private let domainServerURLs = [
+        "https://rup4a04-c01.tos-ap-southeast-1.bytepluses.com/newsvr-2025.txt",
+        "https://rup4a04-c02.tos-cn-hongkong.bytepluses.com/newsvr-2025.txt",
+        "https://rup4a04-c03.tos-cn-beijing.bytepluses.com.cn/newsvr-2025.txt",
+    ]
+    let imageDomains = [
+        "cdn-msp.jmapiproxy1.cc", "cdn-msp.jmapiproxy2.cc", "cdn-msp2.jmapiproxy2.cc",
+        "cdn-msp3.jmapiproxy2.cc", "cdn-msp.jmapinodeudzn.net", "cdn-msp3.jmapinodeudzn.net",
+    ]
+
+    private let lock = NSLock()
+    private var discovered: [String]?
+    private var preferred: String?
+    private var triedDiscovery = false
+
+    static let userAgent = "Mozilla/5.0 (Linux; Android 9; V1938CT Build/PQ3A.190705.11211812; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/91.0.4472.114 Safari/537.36"
+
+    var imageDomain: String { imageDomains.randomElement() ?? imageDomains[0] }
+
+    // MARK: 網域
+
+    private func domains() async -> [String] {
+        let custom = AppSettings.shared.jmCustomDomain
+            .split(whereSeparator: { $0 == "," || $0 == " " || $0 == "\n" })
+            .map { String($0).replacingOccurrences(of: "https://", with: "").trimmingCharacters(in: CharacterSet(charactersIn: "/")) }
+            .filter { !$0.isEmpty }
+        if !custom.isEmpty { return custom }
+
+        lock.lock()
+        let needDiscovery = !triedDiscovery
+        triedDiscovery = true
+        lock.unlock()
+        if needDiscovery { await discoverDomains() }
+
+        lock.lock(); defer { lock.unlock() }
+        var list = discovered ?? builtinDomains
+        if let preferred, let index = list.firstIndex(of: preferred) {
+            list.remove(at: index)
+            list.insert(preferred, at: 0)
+        }
+        return list
+    }
+
+    /// 向官方域名伺服器查詢最新的 API 網域；失敗則沿用內建清單。
+    private func discoverDomains() async {
+        for urlString in domainServerURLs.shuffled() {
+            guard let url = URL(string: urlString) else { continue }
+            do {
+                var request = URLRequest(url: url)
+                request.timeoutInterval = 8
+                let (data, _) = try await HTTP.data(for: request)
+                var text = String(decoding: data, as: UTF8.self)
+                while let first = text.unicodeScalars.first, !first.isASCII { text.removeFirst() }
+                let plain = try JMCrypto.decrypt(text, ts: "", secret: JMCrypto.domainServerSecret)
+                let json = try HTTP.json(plain)
+                let servers = json.strings("Server")
+                if !servers.isEmpty {
+                    lock.lock(); discovered = servers; lock.unlock()
+                    return
+                }
+            } catch {
+                continue
+            }
+        }
+    }
+
+    // MARK: 請求
+
+    struct Response {
+        let ts: String
+        let body: Data
+    }
+
+    func call(_ path: String,
+              query: [URLQueryItem] = [],
+              form: [String: String]? = nil,
+              secret: String = JMCrypto.tokenSecret) async throws -> Response {
+        var lastError: Error = AppError.message("所有 API 網域皆無法連線")
+        for domain in await domains() {
+            let ts = String(Int(Date().timeIntervalSince1970))
+            var components = URLComponents()
+            components.scheme = "https"
+            components.host = domain
+            components.path = path
+            if !query.isEmpty { components.queryItems = query }
+            guard let url = components.url else { continue }
+
+            var request = URLRequest(url: url)
+            let (token, tokenparam) = JMCrypto.token(ts: ts, secret: secret)
+            request.setValue(token, forHTTPHeaderField: "token")
+            request.setValue(tokenparam, forHTTPHeaderField: "tokenparam")
+            request.setValue(Self.userAgent, forHTTPHeaderField: "User-Agent")
+            if let form {
+                request.httpMethod = "POST"
+                request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+                var encoder = URLComponents()
+                encoder.queryItems = form.map { URLQueryItem(name: $0.key, value: $0.value) }
+                request.httpBody = Data((encoder.percentEncodedQuery ?? "").utf8)
+            }
+            installSessionCookie(domain: domain)
+
+            do {
+                let (data, response) = try await HTTP.data(for: request)
+                guard response.statusCode == 200 else {
+                    lastError = AppError.http(response.statusCode)
+                    continue
+                }
+                lock.lock(); preferred = domain; lock.unlock()
+                return Response(ts: ts, body: data)
+            } catch {
+                lastError = error
+            }
+        }
+        throw lastError
+    }
+
+    /// 呼叫並解密 JSON 回應，回傳解密後的 `data`。
+    func json(_ path: String,
+              query: [URLQueryItem] = [],
+              form: [String: String]? = nil) async throws -> [String: Any] {
+        let response = try await call(path, query: query, form: form)
+        return try decode(response)
+    }
+
+    func decode(_ response: Response) throws -> [String: Any] {
+        var text = String(decoding: response.body, as: UTF8.self)
+        if let brace = text.firstIndex(of: "{") { text = String(text[brace...]) }
+        let envelope = try HTTP.json(Data(text.utf8))
+        guard (envelope.int("code") ?? 0) == 200 else {
+            let message = envelope.string("errorMsg") ?? envelope.string("message") ?? "請求失敗"
+            throw AppError.message("禁漫：\(message)")
+        }
+        guard let encoded = envelope["data"] as? String else { return [:] }
+        let plain = try JMCrypto.decrypt(encoded, ts: response.ts, secret: JMCrypto.dataSecret)
+        guard let object = try JSONSerialization.jsonObject(with: plain) as? [String: Any] else {
+            throw AppError.message("無法解析禁漫資料")
+        }
+        return object
+    }
+
+    private func installSessionCookie(domain: String) {
+        let avs = AppSettings.shared.jmAVS
+        guard !avs.isEmpty,
+              let cookie = HTTPCookie(properties: [.name: "AVS", .value: avs, .domain: domain, .path: "/"])
+        else { return }
+        HTTPCookieStorage.shared.setCookie(cookie)
+    }
+
+    // MARK: 登入
+
+    func login(username: String, password: String) async throws {
+        let result = try await json("/login", form: ["username": username, "password": password])
+        guard let session = result.string("s") else { throw AppError.message("登入失敗：沒有取得工作階段") }
+        await MainActor.run {
+            AppSettings.shared.jmAVS = session
+            AppSettings.shared.jmUsername = username
+        }
+    }
+
+    func logout() async {
+        await MainActor.run {
+            AppSettings.shared.jmAVS = ""
+        }
+    }
+}
+
+struct JMComicSource: ComicSource {
+    let kind = SourceKind.jmcomic
+
+    let sortOptions: [SortOption] = [
+        SortOption(id: "mr", title: "最新", order: "mr", time: "a"),
+        SortOption(id: "mv_t", title: "觀看（今日）", order: "mv", time: "t"),
+        SortOption(id: "mv_w", title: "觀看（本週）", order: "mv", time: "w"),
+        SortOption(id: "mv_m", title: "觀看（本月）", order: "mv", time: "m"),
+        SortOption(id: "mv", title: "觀看（全部）", order: "mv", time: "a"),
+        SortOption(id: "tf", title: "愛心最多", order: "tf", time: "a"),
+        SortOption(id: "mp", title: "圖片最多", order: "mp", time: "a"),
+    ]
+
+    private let client = JMClient.shared
+
+    private func coverURL(_ id: String) -> URL? {
+        URL(string: "https://\(client.imageDomain)/media/albums/\(id)_3x4.jpg")
+    }
+
+    private func summary(from item: [String: Any]) -> ComicSummary? {
+        guard let id = item.string("id") else { return nil }
+        var parts: [String] = []
+        if let author = item.string("author"), !author.isEmpty { parts.append(author) }
+        if let category = (item["category"] as? [String: Any])?.string("title") { parts.append(category) }
+        return ComicSummary(
+            source: .jmcomic,
+            sid: id,
+            title: item.string("name") ?? "JM\(id)",
+            coverURL: coverURL(id),
+            subtitle: parts.isEmpty ? nil : parts.joined(separator: " · ")
+        )
+    }
+
+    // MARK: ComicSource
+
+    func browse(query: String, page: Int, sort: SortOption) async throws -> ComicPageResult {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let result: [String: Any]
+        if trimmed.isEmpty {
+            let order = sort.time == "a" ? sort.order : "\(sort.order)_\(sort.time)"
+            result = try await client.json("/categories/filter", query: [
+                URLQueryItem(name: "page", value: String(page)),
+                URLQueryItem(name: "order", value: ""),
+                URLQueryItem(name: "c", value: "0"),
+                URLQueryItem(name: "o", value: order),
+            ])
+        } else {
+            result = try await client.json("/search", query: [
+                URLQueryItem(name: "main_tag", value: "0"),
+                URLQueryItem(name: "search_query", value: trimmed),
+                URLQueryItem(name: "page", value: String(page)),
+                URLQueryItem(name: "o", value: sort.order),
+                URLQueryItem(name: "t", value: sort.time),
+            ])
+            // 直接搜尋車號時，伺服器會回傳 redirect_aid
+            if let aid = result.string("redirect_aid"), !aid.isEmpty {
+                let detail = try await self.detail(of: ComicSummary(source: .jmcomic, sid: aid, title: "JM\(aid)"))
+                return ComicPageResult(items: [detail.summary], total: 1, totalPages: 1)
+            }
+        }
+        let items = result.dicts("content").compactMap(summary(from:))
+        return ComicPageResult(items: items, total: result.int("total"), totalPages: nil)
+    }
+
+    func favorites(page: Int) async throws -> ComicPageResult {
+        let result = try await client.json("/favorite", query: [
+            URLQueryItem(name: "page", value: String(page)),
+            URLQueryItem(name: "folder_id", value: "0"),
+            URLQueryItem(name: "o", value: "mr"),
+        ])
+        return ComicPageResult(items: result.dicts("list").compactMap(summary(from:)),
+                               total: result.int("total"), totalPages: nil)
+    }
+
+    func detail(of summary: ComicSummary) async throws -> ComicDetail {
+        let json = try await client.json("/album", query: [URLQueryItem(name: "id", value: summary.sid)])
+        guard let name = json.string("name") else { throw AppError.message("找不到這本漫畫") }
+
+        var base = summary
+        base.title = name
+        base.coverURL = coverURL(summary.sid)
+        let authors = json.strings("author")
+        base.subtitle = authors.joined(separator: " · ")
+
+        var tags: [ComicTag] = json.strings("tags").map { ComicTag(name: $0, group: "tag", query: $0) }
+        tags += json.strings("works").map { ComicTag(name: $0, group: "work", query: $0) }
+        tags += json.strings("actors").map { ComicTag(name: $0, group: "actor", query: $0) }
+
+        var chapters = json.dicts("series").compactMap { item -> (Int, Chapter)? in
+            guard let id = item.string("id") else { return nil }
+            let sort = item.int("sort") ?? 0
+            let rawTitle = item.string("name") ?? ""
+            return (sort, Chapter(id: id, title: rawTitle.isEmpty ? "第\(sort)話" : rawTitle))
+        }
+        .sorted { $0.0 < $1.0 }
+        .map(\.1)
+        if chapters.isEmpty { chapters = [Chapter(id: summary.sid, title: "開始閱讀")] }
+
+        var stats: [String] = []
+        if let views = json.string("total_views") { stats.append("👁 \(views)") }
+        if let likes = json.string("likes") { stats.append("♥ \(likes)") }
+        if let comments = json.string("comment_total") { stats.append("💬 \(comments)") }
+        stats.append("JM\(summary.sid)")
+
+        let description = json.string("description").flatMap { $0.isEmpty ? nil : $0 }
+        let related = json.dicts("related_list").compactMap(self.summary(from:))
+        return ComicDetail(
+            summary: base,
+            description: description,
+            authors: authors,
+            tags: tags,
+            stats: stats,
+            chapters: chapters,
+            related: related,
+            pageCount: json.int("total_photos")
+        )
+    }
+
+    func pages(of detail: ComicDetail, chapter: Chapter) async throws -> [ReaderPage] {
+        let json = try await client.json("/chapter", query: [URLQueryItem(name: "id", value: chapter.id)])
+        let names = json.strings("images")
+        guard !names.isEmpty else { throw AppError.message("這個章節沒有圖片") }
+        let scrambleId = await fetchScrambleId(chapter.id)
+        let aid = Int(chapter.id) ?? 0
+        let domain = client.imageDomain
+        let stamp = String(Int(Date().timeIntervalSince1970))
+
+        return names.enumerated().compactMap { index, name in
+            guard let url = URL(string: "https://\(domain)/media/photos/\(chapter.id)/\(name)?v=\(stamp)") else { return nil }
+            let ext = (name as NSString).pathExtension.lowercased()
+            let stem = (name as NSString).deletingPathExtension
+            let count = ext == "gif" ? 0 : JMCrypto.scrambleCount(scrambleId: scrambleId, aid: aid, filename: stem)
+            return ReaderPage(index: index, image: ImageSpec(url: url, source: .jmcomic, scramble: count))
+        }
+    }
+
+    /// `/chapter_view_template` 回傳 HTML 文字，內含 `var scramble_id = N;`；使用另一組密鑰。
+    private func fetchScrambleId(_ chapterId: String) async -> Int {
+        let fallback = 220980
+        do {
+            let response = try await client.call("/chapter_view_template", query: [
+                URLQueryItem(name: "id", value: chapterId),
+                URLQueryItem(name: "mode", value: "vertical"),
+                URLQueryItem(name: "page", value: "0"),
+                URLQueryItem(name: "app_img_shunt", value: "1"),
+                URLQueryItem(name: "express", value: "off"),
+                URLQueryItem(name: "v", value: String(Int(Date().timeIntervalSince1970))),
+            ], secret: JMCrypto.tokenSecret2)
+            let text = String(decoding: response.body, as: UTF8.self)
+            if let range = text.range(of: #"var scramble_id = (\d+);"#, options: .regularExpression) {
+                let digits = text[range].filter(\.isNumber)
+                return Int(digits) ?? fallback
+            }
+        } catch {}
+        return fallback
+    }
+}
