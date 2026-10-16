@@ -33,9 +33,19 @@ struct NHentaiSource: ComicSource {
     }
 
     private func fetch(_ request: URLRequest) async throws -> [String: Any] {
-        let (data, response) = try await HTTP.data(for: request)
-        guard response.statusCode == 200 else { throw AppError.http(response.statusCode) }
-        return try HTTP.json(data)
+        var attempt = 0
+        while true {
+            let (data, response) = try await HTTP.data(for: request)
+            if response.statusCode == 429, attempt < 2 {
+                // 被限流：依 Retry-After（預設 2 秒）等待後重試
+                let wait = Double(response.value(forHTTPHeaderField: "Retry-After") ?? "") ?? 2
+                try await Task.sleep(nanoseconds: UInt64(min(max(wait, 1), 8) * 1_000_000_000))
+                attempt += 1
+                continue
+            }
+            guard response.statusCode == 200 else { throw AppError.http(response.statusCode) }
+            return try HTTP.json(data)
+        }
     }
 
     private func thumbURL(_ path: String) -> URL? {

@@ -16,6 +16,14 @@ struct HomeView: View {
         return options.first { $0.id == sortIds[settings.lastSource] } ?? options[0]
     }
 
+    /// 只有「目前這個 venera 漫畫源」載入完成時才需要重新抓取；
+    /// 其他漫畫源啟動時陸續載入不應觸發重新請求（否則 nhentai 會因請求過多回 429）。
+    private var catalogState: Int {
+        settings.lastSource.isVenera
+            ? (VeneraRegistry.shared.info(settings.lastSource.veneraKey) == nil ? 0 : 1)
+            : 0
+    }
+
     private struct LoadKey: Hashable {
         var source: SourceKind
         var query: String
@@ -46,7 +54,7 @@ struct HomeView: View {
             }
         }
         .navigationDestination(item: $directOpen) { DetailView(summary: $0) }
-        .task(id: LoadKey(source: settings.lastSource, query: query, sort: currentSort.id, catalog: venera.sources.count)) {
+        .task(id: LoadKey(source: settings.lastSource, query: query, sort: currentSort.id, catalog: catalogState)) {
             let source = self.source
             let sort = currentSort
             let query = self.query
