@@ -16,8 +16,9 @@ struct ReaderView: View {
     @State private var showChrome = true
     @State private var pendingScroll: Int?
 
-    init(route: ReaderRoute) {
+    init(route: ReaderRoute, onClose: @escaping () -> Void = {}) {
         self.route = route
+        self.onClose = onClose
         _chapterIndex = State(initialValue: route.chapterIndex)
         _current = State(initialValue: route.startPage)
         _pendingScroll = State(initialValue: route.startPage > 0 ? route.startPage : nil)
