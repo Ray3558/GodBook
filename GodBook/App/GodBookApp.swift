@@ -7,6 +7,8 @@ struct GodBookApp: App {
     private let settings = AppSettings.shared
     private let downloads = DownloadManager.shared
     private let venera = VeneraStore.shared
+    @StateObject private var lock = AppLock.shared
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
@@ -18,6 +20,33 @@ struct GodBookApp: App {
                 .environmentObject(venera)
                 .tint(theme.accent)
                 .preferredColorScheme(theme.preferredScheme)
+                .overlay {
+                    // 鎖定中，或 App 鎖開啟時在多工畫面遮住內容
+                    if lock.locked || (settings.appLockEnabled && scenePhase != .active) { LockOverlay() }
+                }
+                .task {
+                    DispatchQueue.global(qos: .utility).async { ImageDiskCache.trim() }
+                    if lock.locked { await lock.unlock() }
+                }
+                .onChange(of: scenePhase) { _, phase in
+                    switch phase {
+                    case .background:
+                        lock.lockIfNeeded()
+                        if settings.webdavAutoUpload, !settings.webdavURL.isEmpty { backgroundUpload() }
+                    case .active:
+                        if lock.locked { Task { await lock.unlock() } }
+                    default: break
+                    }
+                }
+        }
+    }
+
+    private func backgroundUpload() {
+        var taskId = UIBackgroundTaskIdentifier.invalid
+        taskId = UIApplication.shared.beginBackgroundTask { UIApplication.shared.endBackgroundTask(taskId) }
+        Task {
+            try? await WebDAV.upload()
+            UIApplication.shared.endBackgroundTask(taskId)
         }
     }
 }

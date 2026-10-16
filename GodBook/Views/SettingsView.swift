@@ -24,6 +24,7 @@ struct SettingsView: View {
                 nhentaiCard
                 jmCard
                 readerCard
+                advancedCard
                 downloadCard
                 aboutCard
             }
@@ -216,6 +217,29 @@ struct SettingsView: View {
             }
             .pickerStyle(.menu)
         }
+    }
+
+    private var advancedCard: some View {
+        SettingsCard(title: "進階", systemImage: "gearshape.2.fill") {
+            link("網路（代理、憑證）", systemImage: "network") { NetworkSettingsView() }
+            link("快取、備份與 WebDAV", systemImage: "externaldrive.fill") { CacheDataSettingsView() }
+            link("安全性（App 鎖）", systemImage: "lock.shield.fill") { SecuritySettingsView() }
+        }
+    }
+
+    private func link<Destination: View>(_ title: String, systemImage: String,
+                                         @ViewBuilder destination: () -> Destination) -> some View {
+        NavigationLink {
+            destination()
+        } label: {
+            HStack {
+                Label(title, systemImage: systemImage)
+                Spacer()
+                Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     private var downloadCard: some View {

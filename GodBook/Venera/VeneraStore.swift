@@ -20,6 +20,8 @@ final class VeneraStore: ObservableObject {
 
     @Published private(set) var sources: [VeneraInfo] = []
     @Published private(set) var isBootstrapping = false
+    @Published private(set) var availableUpdates: [VeneraIndexEntry] = []
+    @Published private(set) var isUpdating = false
 
     private let defaults = UserDefaults.standard
     private let removedKey = "venera.removed"
@@ -53,6 +55,35 @@ final class VeneraStore: ObservableObject {
                 VeneraLog.shared.add("error", "載入 \(key)", error.localizedDescription)
             }
         }
+
+        if AppSettings.shared.autoUpdateSources { _ = await checkUpdates(install: true) }
+    }
+
+    /// 檢查遠端索引有沒有較新的腳本；`install` 為 true 時直接更新。回傳可更新（或已更新）的項目數。
+    @discardableResult
+    func checkUpdates(install: Bool) async -> Int {
+        guard !isUpdating else { return 0 }
+        isUpdating = true
+        defer { isUpdating = false }
+        let indexURL = AppSettings.shared.sourceListURL
+        guard let entries = try? await fetchIndex(indexURL) else { return 0 }
+
+        var seen = Set<String>()
+        var pending: [VeneraIndexEntry] = []
+        for entry in entries where seen.insert(entry.key).inserted {
+            guard let installed = isInstalled(entry.key), isNewerVersion(entry.version, than: installed.version) else { continue }
+            pending.append(entry)
+        }
+        availableUpdates = pending
+        guard install else { return pending.count }
+
+        var updated = 0
+        for entry in pending {
+            do { try await self.install(entry: entry, indexURL: indexURL); updated += 1 }
+            catch { VeneraLog.shared.add("error", "更新 \(entry.name)", error.localizedDescription) }
+        }
+        availableUpdates = []
+        return updated
     }
 
     private func installedKeys() -> [String] {

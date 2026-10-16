@@ -14,6 +14,19 @@ struct VeneraSource: ComicSource {
     private var info: VeneraInfo? { VeneraRegistry.shared.info(key) }
     private var runtime: VeneraRuntime { .shared }
 
+    /// 呼叫腳本函式；若腳本回報登入過期，用已儲存的帳密重新登入後重試一次。
+    private func invoke(_ function: String, _ args: [Any?]) async throws -> [String: Any] {
+        do {
+            return try await runtime.call(key, function, args)
+        } catch let error as AppError {
+            guard case .message(let text) = error, text.contains("Login expired"),
+                  let account = Keychain.get("venera.\(key).account"),
+                  let password = Keychain.get("venera.\(key).password") else { throw error }
+            _ = try await runtime.callValue(key, "__login", [account, password])
+            return try await runtime.call(key, function, args)
+        }
+    }
+
     init(kind: SourceKind) { self.kind = kind }
 
     // MARK: 排序 / 分區
@@ -50,7 +63,7 @@ struct VeneraSource: ComicSource {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
 
         if let (category, param) = VeneraQuery.decodeCategory(trimmed) {
-            let result = try await runtime.call(key, "__category", [category, param, defaultCategoryOptions(info), page])
+            let result = try await invoke( "__category", [category, param, defaultCategoryOptions(info), page])
             return decodePage(result, page: page)
         }
 
@@ -60,14 +73,14 @@ struct VeneraSource: ComicSource {
             if sort.id.hasPrefix("search:"), !options.isEmpty {
                 options[0] = String(sort.id.dropFirst("search:".count))
             }
-            let result = try await runtime.call(key, "__search", [trimmed, options, page, tokens.next[page]])
+            let result = try await invoke( "__search", [trimmed, options, page, tokens.next[page]])
             return decodePage(result, page: page)
         }
 
         let parts = sort.id.split(separator: ":", omittingEmptySubsequences: false).map(String.init)
         switch parts.first {
         case "explore":
-            let result = try await runtime.call(key, "__explore", [Int(parts[safe: 1] ?? "") ?? 0, page, tokens.next[page]])
+            let result = try await invoke( "__explore", [Int(parts[safe: 1] ?? "") ?? 0, page, tokens.next[page]])
             return decodePage(result, page: page)
         case "cat":
             let item = info.category?.parts[safe: Int(parts[safe: 1] ?? "") ?? 0]?.items[safe: Int(parts[safe: 2] ?? "") ?? 0]
@@ -75,15 +88,15 @@ struct VeneraSource: ComicSource {
             if item.kind == "search" {
                 return try await browse(query: item.text ?? item.label, page: page, sort: SortOption(id: "none", title: ""))
             }
-            let result = try await runtime.call(key, "__category", [item.category ?? item.label, item.param, defaultCategoryOptions(info), page])
+            let result = try await invoke( "__category", [item.category ?? item.label, item.param, defaultCategoryOptions(info), page])
             return decodePage(result, page: page)
         case "rank":
-            let result = try await runtime.call(key, "__ranking", [parts.dropFirst().joined(separator: ":"), page, tokens.next[page]])
+            let result = try await invoke( "__ranking", [parts.dropFirst().joined(separator: ":"), page, tokens.next[page]])
             return decodePage(result, page: page)
         default:
             // 沒有選任何分區時的預設行為
             if !info.explore.isEmpty {
-                let result = try await runtime.call(key, "__explore", [0, page, tokens.next[page]])
+                let result = try await invoke( "__explore", [0, page, tokens.next[page]])
                 return decodePage(result, page: page)
             }
             throw AppError.message("這個漫畫源沒有可瀏覽的首頁，請使用搜尋")
@@ -95,20 +108,20 @@ struct VeneraSource: ComicSource {
         var folder: String?
         if favorites.multiFolder {
             if tokens.folder == nil {
-                let result = try await runtime.call(key, "__favoriteFolders", [])
+                let result = try await invoke( "__favoriteFolders", [])
                 let first = (result["folders"] as? [[String: Any]])?.first?["id"] as? String
                 tokens.folder = .some(first)
             }
             folder = tokens.folder ?? nil
         }
-        let result = try await runtime.call(key, "__favorites", [page, folder, tokens.next[page]])
+        let result = try await invoke( "__favorites", [page, folder, tokens.next[page]])
         return decodePage(result, page: page)
     }
 
     // MARK: 詳情
 
     func detail(of summary: ComicSummary) async throws -> ComicDetail {
-        let r = try await runtime.call(key, "__loadInfo", [summary.sid])
+        let r = try await invoke( "__loadInfo", [summary.sid])
 
         var base = summary
         if let title = r["title"] as? String, !title.isEmpty { base.title = title }
@@ -159,7 +172,7 @@ struct VeneraSource: ComicSource {
 
     func pages(of detail: ComicDetail, chapter: Chapter) async throws -> [ReaderPage] {
         let epId: String? = chapter.id == VeneraQuery.noChapter ? nil : chapter.id
-        let result = try await runtime.call(key, "__loadEp", [detail.summary.sid, epId])
+        let result = try await invoke( "__loadEp", [detail.summary.sid, epId])
         let images = (result["images"] as? [String]) ?? []
         guard !images.isEmpty else { throw AppError.message("這個章節沒有圖片") }
         return images.enumerated().map { index, string in

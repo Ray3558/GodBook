@@ -67,6 +67,19 @@ struct VeneraSourcesView: View {
                     }
                 }
 
+                Panel(title: "更新") {
+                    Toggle("啟動時自動更新漫畫源", isOn: $settings.autoUpdateSources)
+                    TextField("索引網址 (index.json)", text: $settings.sourceListURL)
+                        .textInputAutocapitalization(.never).autocorrectionDisabled().textFieldStyle(.roundedBorder)
+                    GlassButton(title: store.isUpdating ? "更新中…" : "立即檢查並更新", systemImage: "arrow.triangle.2.circlepath") {
+                        Task {
+                            let count = await store.checkUpdates(install: true)
+                            ToastCenter.shared.show(count > 0 ? "已更新 \(count) 個漫畫源" : "漫畫源都是最新版")
+                        }
+                    }
+                    .disabled(store.isUpdating)
+                }
+
                 Panel(title: nil) {
                     GlassButton(title: "新增或更新漫畫源", systemImage: "plus.circle.fill", prominent: true) { showAdd = true }
                     GlassButton(title: restoring ? "處理中…" : "重新安裝內建漫畫源", systemImage: "arrow.counterclockwise") {
@@ -331,6 +344,8 @@ struct VeneraSourceDetailView: View {
             do {
                 _ = try await VeneraRuntime.shared.callValue(key, "__login", [user, pass])
                 VeneraStorage.shared.setData(key, "account", jsLiteral(user))
+                Keychain.set(user, for: "venera.\(key).account")
+                Keychain.set(pass, for: "venera.\(key).password")
                 logged = true; password = ""
             } catch { message = error.localizedDescription }
             busy = false
@@ -354,6 +369,8 @@ struct VeneraSourceDetailView: View {
         Task {
             _ = try? await VeneraRuntime.shared.callValue(key, "__logout", [])
             VeneraStorage.shared.deleteData(key, "account")
+            Keychain.delete("venera.\(key).account")
+            Keychain.delete("venera.\(key).password")
             logged = false
         }
     }

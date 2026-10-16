@@ -212,14 +212,6 @@ final class VeneraBridge {
     private var nodes: [Int: [Int: Node]] = [:]
     private var nextNodeKey: [Int: Int] = [:]
 
-    private static let session: URLSession = {
-        let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 30
-        config.requestCachePolicy = .reloadIgnoringLocalCacheData
-        config.httpCookieStorage = HTTPCookieStorage.shared
-        return URLSession(configuration: config)
-    }()
-
     init(queue: DispatchQueue) {
         self.queue = queue
     }
@@ -462,7 +454,7 @@ final class VeneraBridge {
         if let body, let data = Data(base64Encoded: body) { request.httpBody = data }
 
         let queue = self.queue
-        Self.session.dataTask(with: request) { data, response, error in
+        HTTP.plainSession.dataTask(with: request) { data, response, error in
             if let error {
                 let code = (error as NSError).code
                 let message = "\(url.host ?? "")：\(error.localizedDescription) (\(code))"

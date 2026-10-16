@@ -31,6 +31,20 @@ final class AppSettings: ObservableObject {
     }
     @Published var lastSource: SourceKind { didSet { defaults.set(lastSource.rawValue, forKey: "ui.lastSource") } }
 
+    // MARK: 網路與進階設定（存於 UserDefaults，變動時自動通知畫面）
+    @Stored("net.proxyMode", "system") var proxyMode: String      // system | direct | manual
+    @Stored("net.proxyType", "http") var proxyType: String        // http | socks5
+    @Stored("net.proxyHost", "") var proxyHost: String
+    @Stored("net.proxyPort", "") var proxyPort: String
+    @Stored("net.ignoreBadCert", false) var ignoreBadCert: Bool
+    @Stored("net.cacheLimitMB", 2048) var cacheLimitMB: Int
+    @Stored("lock.enabled", false) var appLockEnabled: Bool
+    @Stored("webdav.url", "") var webdavURL: String
+    @Stored("webdav.user", "") var webdavUser: String
+    @Stored("src.listURL", "https://cdn.jsdelivr.net/gh/venera-app/venera-configs@main/index.json") var sourceListURL: String
+    @Stored("src.autoUpdate", true) var autoUpdateSources: Bool
+    @Stored("webdav.autoUpload", false) var webdavAutoUpload: Bool
+
     var jmLoggedIn: Bool { !jmAVS.isEmpty }
 
     /// 目前啟用的來源（依序：nhentai、禁漫、已安裝的 venera 漫畫源）

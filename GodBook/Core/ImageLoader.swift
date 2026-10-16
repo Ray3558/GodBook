@@ -12,7 +12,7 @@ actor ImageLoader {
     }()
     private var inflight: [String: Task<UIImage, Error>] = [:]
 
-    private func key(for spec: ImageSpec) -> String {
+    static func cacheKey(_ spec: ImageSpec) -> String {
         if spec.source.isVenera {
             return "\(spec.source.rawValue)|\(spec.comicId ?? "")|\(spec.epId ?? "")|\(spec.imageKey ?? spec.url.absoluteString)"
         }
@@ -20,6 +20,10 @@ actor ImageLoader {
         components?.query = nil // 禁漫的 ?v=timestamp 每次不同，不應影響快取
         return "\(components?.string ?? spec.url.absoluteString)#\(spec.scramble)"
     }
+
+    private func key(for spec: ImageSpec) -> String { Self.cacheKey(spec) }
+
+    func clearMemory() { cache.removeAllObjects() }
 
     func image(for spec: ImageSpec) async throws -> UIImage {
         let key = key(for: spec)
@@ -47,6 +51,14 @@ actor ImageLoader {
     /// 下載（或讀取本機）原始圖片資料；網路錯誤最多重試 3 次。
     static func rawData(_ spec: ImageSpec) async throws -> Data {
         if spec.url.isFileURL { return try Data(contentsOf: spec.url) }
+        let diskKey = cacheKey(spec)
+        if let cached = ImageDiskCache.read(diskKey) { return cached }
+        let data = try await fetchRemote(spec)
+        ImageDiskCache.write(diskKey, data)
+        return data
+    }
+
+    private static func fetchRemote(_ spec: ImageSpec) async throws -> Data {
         if spec.source.isVenera {
             return try await VeneraRuntime.shared.loadImage(
                 sourceKey: spec.source.veneraKey,
