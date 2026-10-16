@@ -33,7 +33,54 @@ actor ImageLoader {
     }
 
     private static func fetch(_ spec: ImageSpec) async throws -> UIImage {
-        var request = URLRequest(url: spec.url)
+        let data = try await rawData(spec)
+        guard var image = UIImage(data: data) else { throw AppError.message("無法解碼圖片") }
+        if spec.scramble > 1, let restored = Descrambler.descramble(image, num: spec.scramble) {
+            image = restored
+        }
+        return await image.byPreparingForDisplay() ?? image
+    }
+
+    /// 下載（或讀取本機）原始圖片資料；網路錯誤最多重試 3 次。
+    static func rawData(_ spec: ImageSpec) async throws -> Data {
+        if spec.url.isFileURL { return try Data(contentsOf: spec.url) }
+
+        var lastError: Error = AppError.message("下載圖片失敗")
+        for attempt in 0..<3 {
+            do {
+                var result = try await HTTP.data(for: makeRequest(spec, url: spec.url))
+                if result.1.statusCode == 200, result.0.isEmpty, spec.source == .jmcomic {
+                    // 禁漫 CDN 偶爾回傳空內容（快取失效）；加上時間戳再要一次
+                    result = try await HTTP.data(for: makeRequest(spec, url: cacheBusted(spec.url)))
+                }
+                guard result.1.statusCode == 200, !result.0.isEmpty else {
+                    throw AppError.http(result.1.statusCode)
+                }
+                return result.0
+            } catch {
+                lastError = error
+                if Task.isCancelled || (error as? URLError)?.code == .cancelled { throw CancellationError() }
+                if case AppError.http(let code) = error, code == 403 || code == 404 { break }
+                try await Task.sleep(nanoseconds: UInt64(attempt + 1) * 600_000_000)
+            }
+        }
+        throw lastError
+    }
+
+    /// 供下載使用：回傳可直接存檔的資料與副檔名。禁漫被切割的圖片會先還原並存成 JPEG。
+    static func downloadData(_ spec: ImageSpec) async throws -> (Data, String) {
+        let data = try await rawData(spec)
+        if spec.scramble > 1,
+           let image = UIImage(data: data),
+           let restored = Descrambler.descramble(image, num: spec.scramble),
+           let jpeg = restored.jpegData(compressionQuality: 0.92) {
+            return (jpeg, "jpg")
+        }
+        return (data, sniffExtension(data, fallback: spec.url.pathExtension))
+    }
+
+    private static func makeRequest(_ spec: ImageSpec, url: URL) -> URLRequest {
+        var request = URLRequest(url: url)
         switch spec.source {
         case .nhentai:
             request.setValue("NClient/3 (GodBook iOS)", forHTTPHeaderField: "User-Agent")
@@ -43,13 +90,24 @@ actor ImageLoader {
             request.setValue("com.JMComic3.app", forHTTPHeaderField: "X-Requested-With")
             request.setValue("https://www.cdnhjk.net", forHTTPHeaderField: "Referer")
         }
-        let (data, response) = try await HTTP.data(for: request)
-        guard response.statusCode == 200 else { throw AppError.http(response.statusCode) }
-        guard var image = UIImage(data: data) else { throw AppError.message("無法解碼圖片") }
-        if spec.scramble > 1, let restored = Descrambler.descramble(image, num: spec.scramble) {
-            image = restored
-        }
-        return await image.byPreparingForDisplay() ?? image
+        return request
+    }
+
+    private static func cacheBusted(_ url: URL) -> URL {
+        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return url }
+        var items = (components.queryItems ?? []).filter { $0.name != "v" && $0.name != "ts" }
+        items.append(URLQueryItem(name: "ts", value: String(Int(Date().timeIntervalSince1970))))
+        components.queryItems = items
+        return components.url ?? url
+    }
+
+    static func sniffExtension(_ data: Data, fallback: String) -> String {
+        let bytes = [UInt8](data.prefix(12))
+        if bytes.starts(with: [0xFF, 0xD8]) { return "jpg" }
+        if bytes.starts(with: [0x89, 0x50, 0x4E, 0x47]) { return "png" }
+        if bytes.starts(with: [0x47, 0x49, 0x46]) { return "gif" }
+        if bytes.count >= 12, bytes[0...3] == [0x52, 0x49, 0x46, 0x46], bytes[8...11] == [0x57, 0x45, 0x42, 0x50] { return "webp" }
+        return fallback.isEmpty ? "jpg" : fallback.lowercased()
     }
 }
 

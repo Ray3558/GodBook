@@ -9,6 +9,9 @@ struct SettingsView: View {
     @State private var jmPassword = ""
     @State private var jmBusy = false
     @State private var jmMessage: String?
+    @State private var downloadSize: Int64 = 0
+    @State private var confirmClear = false
+    @EnvironmentObject private var downloads: DownloadManager
 
     var body: some View {
         ScrollView {
@@ -19,6 +22,7 @@ struct SettingsView: View {
                 nhentaiCard
                 jmCard
                 readerCard
+                downloadCard
                 aboutCard
             }
             .padding(16)
@@ -194,11 +198,34 @@ struct SettingsView: View {
         }
     }
 
+    private var downloadCard: some View {
+        SettingsCard(title: "下載", systemImage: "arrow.down.circle.fill") {
+            Stepper("同時下載圖片數：\(settings.downloadConcurrency)", value: $settings.downloadConcurrency, in: 1...8)
+            Toggle("翻譯 nhentai 標籤（繁體中文）", isOn: $settings.translateTags)
+            HStack {
+                Text("已佔用空間")
+                Spacer()
+                Text(ByteCountFormatter.string(fromByteCount: downloadSize, countStyle: .file)).foregroundStyle(.secondary)
+            }
+            Button("清除所有下載", role: .destructive) { confirmClear = true }
+                .disabled(downloads.items.isEmpty)
+            Text("下載與匯出的檔案位於「檔案」App → GodBook → Downloads / Exports。")
+                .font(.footnote).foregroundStyle(.secondary)
+        }
+        .task(id: downloads.items.map(\.done).reduce(0, +)) {
+            downloadSize = await Task.detached { DownloadStorage.totalSize() }.value
+        }
+        .confirmationDialog("確定要刪除所有已下載內容？", isPresented: $confirmClear, titleVisibility: .visible) {
+            Button("刪除全部", role: .destructive) { downloads.removeAll() }
+        }
+    }
+
     private var aboutCard: some View {
         SettingsCard(title: "關於", systemImage: "info.circle.fill") {
             Text("""
             GodBook 整合 nhentai 與禁漫兩個來源。
-            nhentai 的 API 流程參考 NClientV3 (Apache-2.0)；禁漫的 API 協定參考 jmcomic (MIT)。
+            nhentai 的 API 流程參考 NClientV3 (Apache-2.0)；禁漫的 API 協定與下載流程參考 jmcomic (MIT) 與 jmcomic-downloader (MIT)。
+            標籤翻譯來自 EhTagTranslation Database（經 venera 整理）。
             本 App 僅為第三方客戶端，內容版權屬原網站與作者所有。
             """)
             .font(.footnote)

@@ -51,3 +51,6 @@ targets:
         # 設為 false 才會啟用 iOS 26 的液態玻璃外觀
         UIDesignRequiresCompatibility: false
         NSPhotoLibraryUsageDescription: 選擇自訂背景圖片
+        # 讓下載與匯出的檔案可在「檔案」App 的 GodBook 資料夾中看到
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true

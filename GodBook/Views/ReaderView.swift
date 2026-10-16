@@ -176,7 +176,12 @@ struct ReaderView: View {
         isLoading = true
         errorMessage = nil
         do {
-            let loaded = try await SourceRegistry.source(detail.summary.source).pages(of: detail, chapter: chapter)
+            let loaded: [ReaderPage]
+            if let local = DownloadStorage.localPages(summary: detail.summary, chapterId: chapter.id) {
+                loaded = local // 已下載：離線閱讀
+            } else {
+                loaded = try await SourceRegistry.source(detail.summary.source).pages(of: detail, chapter: chapter)
+            }
             pages = loaded
             if current >= loaded.count { current = 0 }
             if pendingScroll != nil { pendingScroll = min(current, max(loaded.count - 1, 0)) }

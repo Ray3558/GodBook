@@ -1,0 +1,114 @@
+import SwiftUI
+
+struct ExportedFile: Identifiable {
+    let id = UUID()
+    let url: URL
+}
+
+struct ShareSheet: UIViewControllerRepresentable {
+    let urls: [URL]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: urls, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
+}
+
+struct DownloadsView: View {
+    @EnvironmentObject private var downloads: DownloadManager
+    @State private var exporting: String?
+    @State private var exported: ExportedFile?
+    @State private var errorMessage: String?
+
+    var body: some View {
+        Group {
+            if downloads.comics.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "arrow.down.circle").font(.largeTitle)
+                    Text("還沒有下載內容")
+                    Text("在作品詳情頁按「下載」即可離線閱讀")
+                        .font(.footnote)
+                }
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 80)
+            } else {
+                LazyVStack(spacing: 10) {
+                    ForEach(downloads.comics) { comic in row(comic) }
+                }
+                .padding(12)
+            }
+        }
+        .sheet(item: $exported) { file in ShareSheet(urls: [file.url]) }
+        .alert("匯出失敗", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            Button("好") {}
+        } message: {
+            Text(errorMessage ?? "")
+        }
+    }
+
+    private func row(_ comic: ComicSummary) -> some View {
+        let items = downloads.items(for: comic)
+        let finished = items.filter { $0.state == .finished }.count
+        let done = items.reduce(0) { $0 + $1.done }
+        let total = items.reduce(0) { $0 + $1.total }
+        let active = items.contains { $0.state == .downloading || $0.state == .queued }
+        let failed = items.first { $0.state == .failed }
+        let localCover = FileManager.default.fileExists(atPath: DownloadStorage.coverFile(comic).path)
+            ? DownloadStorage.coverFile(comic) : comic.coverURL
+
+        return NavigationLink(value: comic) {
+            HStack(spacing: 12) {
+                RemoteImageView(spec: localCover.map { ImageSpec(url: $0, source: comic.source) }, fill: true)
+                    .frame(width: 56, height: 78)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(comic.title).font(.subheadline.weight(.semibold)).lineLimit(2)
+                    Text("\(comic.source.title) · \(finished)/\(items.count) 章完成")
+                        .font(.caption).foregroundStyle(.secondary)
+                    if active || total > done {
+                        ProgressView(value: total > 0 ? Double(done) / Double(total) : 0)
+                    }
+                    if let failed, let error = failed.error {
+                        Text(error).font(.caption2).foregroundStyle(.red).lineLimit(2)
+                    }
+                }
+                Spacer(minLength: 0)
+                if exporting == comic.id {
+                    ProgressView()
+                } else if active {
+                    Button { downloads.pauseAll(of: comic) } label: { Image(systemName: "pause.circle") }
+                        .buttonStyle(.plain).font(.title2)
+                } else if finished < items.count {
+                    Button { downloads.resumeAll(of: comic) } label: { Image(systemName: "play.circle") }
+                        .buttonStyle(.plain).font(.title2)
+                }
+            }
+            .padding(10)
+            .glassCard(cornerRadius: 20, interactive: true)
+            .contextMenu {
+                if finished > 0 {
+                    Button { export(comic) } label: { Label("匯出 CBZ", systemImage: "square.and.arrow.up") }
+                }
+                Button(role: .destructive) { downloads.removeComic(comic) } label: {
+                    Label("刪除下載", systemImage: "trash")
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func export(_ comic: ComicSummary) {
+        exporting = comic.id
+        Task {
+            do {
+                let url = try await Task.detached { try CBZExporter.export(comic) }.value
+                exported = ExportedFile(url: url)
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+            exporting = nil
+        }
+    }
+}

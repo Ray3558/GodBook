@@ -7,6 +7,7 @@ final class JMClient {
 
     private let builtinDomains = [
         "www.cdnhjk.net", "www.cdngwc.cc", "www.cdngwc.net", "www.cdngwc.club",
+        "www.cdnzack.cc", "www.cdnhth.cc", "www.cdnhth.net", "www.cdnbea.net", "www.cdn-mspjmapiproxy.xyz",
     ]
     private let domainServerURLs = [
         "https://rup4a04-c01.tos-ap-southeast-1.bytepluses.com/newsvr-2025.txt",
@@ -21,6 +22,7 @@ final class JMClient {
     private let lock = NSLock()
     private var discovered: [String]?
     private var preferred: String?
+    private var preferredProfile = 0
     private var triedDiscovery = false
 
     static let userAgent = "Mozilla/5.0 (Linux; Android 9; V1938CT Build/PQ3A.190705.11211812; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/91.0.4472.114 Safari/537.36"
@@ -43,7 +45,7 @@ final class JMClient {
         if needDiscovery { await discoverDomains() }
 
         lock.lock(); defer { lock.unlock() }
-        var list = discovered ?? builtinDomains
+        var list = (discovered ?? []) + builtinDomains.filter { !(discovered ?? []).contains($0) }
         if let preferred, let index = list.firstIndex(of: preferred) {
             list.remove(at: index)
             list.insert(preferred, at: 0)
@@ -84,41 +86,57 @@ final class JMClient {
     func call(_ path: String,
               query: [URLQueryItem] = [],
               form: [String: String]? = nil,
-              secret: String = JMCrypto.tokenSecret) async throws -> Response {
+              scramble: Bool = false) async throws -> Response {
         var lastError: Error = AppError.message("所有 API 網域皆無法連線")
+        let profileOrder: [Int] = {
+            lock.lock(); defer { lock.unlock() }
+            let all = Array(JMCrypto.profiles.indices)
+            return [preferredProfile] + all.filter { $0 != preferredProfile }
+        }()
+
         for domain in await domains() {
-            let ts = String(Int(Date().timeIntervalSince1970))
-            var components = URLComponents()
-            components.scheme = "https"
-            components.host = domain
-            components.path = path
-            if !query.isEmpty { components.queryItems = query }
-            guard let url = components.url else { continue }
+            for profileIndex in profileOrder {
+                let profile = JMCrypto.profiles[profileIndex]
+                let ts = String(Int(Date().timeIntervalSince1970))
+                var components = URLComponents()
+                components.scheme = "https"
+                components.host = domain
+                components.path = path
+                if !query.isEmpty { components.queryItems = query }
+                guard let url = components.url else { continue }
 
-            var request = URLRequest(url: url)
-            let (token, tokenparam) = JMCrypto.token(ts: ts, secret: secret)
-            request.setValue(token, forHTTPHeaderField: "token")
-            request.setValue(tokenparam, forHTTPHeaderField: "tokenparam")
-            request.setValue(Self.userAgent, forHTTPHeaderField: "User-Agent")
-            if let form {
-                request.httpMethod = "POST"
-                request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-                var encoder = URLComponents()
-                encoder.queryItems = form.map { URLQueryItem(name: $0.key, value: $0.value) }
-                request.httpBody = Data((encoder.percentEncodedQuery ?? "").utf8)
-            }
-            installSessionCookie(domain: domain)
-
-            do {
-                let (data, response) = try await HTTP.data(for: request)
-                guard response.statusCode == 200 else {
-                    lastError = AppError.http(response.statusCode)
-                    continue
+                var request = URLRequest(url: url)
+                let secret = scramble ? profile.scrambleSecret : profile.tokenSecret
+                let (token, tokenparam) = JMCrypto.token(ts: ts, secret: secret, version: profile.version)
+                request.setValue(token, forHTTPHeaderField: "token")
+                request.setValue(tokenparam, forHTTPHeaderField: "tokenparam")
+                request.setValue(Self.userAgent, forHTTPHeaderField: "User-Agent")
+                if let form {
+                    request.httpMethod = "POST"
+                    request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+                    var encoder = URLComponents()
+                    encoder.queryItems = form.map { URLQueryItem(name: $0.key, value: $0.value) }
+                    request.httpBody = Data((encoder.percentEncodedQuery ?? "").utf8)
                 }
-                lock.lock(); preferred = domain; lock.unlock()
-                return Response(ts: ts, body: data)
-            } catch {
-                lastError = error
+                installSessionCookie(domain: domain)
+
+                do {
+                    let (data, response) = try await HTTP.data(for: request)
+                    guard response.statusCode == 200 else {
+                        // 密鑰過期時伺服器會回 403；換下一組密鑰再試
+                        lastError = AppError.http(response.statusCode)
+                        continue
+                    }
+                    lock.lock()
+                    preferred = domain
+                    preferredProfile = profileIndex
+                    lock.unlock()
+                    return Response(ts: ts, body: data)
+                } catch {
+                    lastError = error
+                    if Task.isCancelled { throw error }
+                    break // 連線層級失敗：直接換下一個網域
+                }
             }
         }
         throw lastError
@@ -321,7 +339,7 @@ struct JMComicSource: ComicSource {
                 URLQueryItem(name: "app_img_shunt", value: "1"),
                 URLQueryItem(name: "express", value: "off"),
                 URLQueryItem(name: "v", value: String(Int(Date().timeIntervalSince1970))),
-            ], secret: JMCrypto.tokenSecret2)
+            ], scramble: true)
             let text = String(decoding: response.body, as: UTF8.self)
             if let range = text.range(of: #"var scramble_id = (\d+);"#, options: .regularExpression) {
                 let digits = text[range].filter(\.isNumber)

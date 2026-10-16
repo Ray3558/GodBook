@@ -23,6 +23,8 @@ final class AppSettings: ObservableObject {
     @Published var jmUsername: String { didSet { defaults.set(jmUsername, forKey: "jm.username") } }
     @Published var jmAVS: String { didSet { defaults.set(jmAVS, forKey: "jm.avs") } }
     @Published var readerMode: ReaderMode { didSet { defaults.set(readerMode.rawValue, forKey: "reader.mode") } }
+    @Published var downloadConcurrency: Int { didSet { defaults.set(downloadConcurrency, forKey: "dl.concurrency") } }
+    @Published var translateTags: Bool { didSet { defaults.set(translateTags, forKey: "ui.translateTags") } }
     @Published var lastSource: SourceKind { didSet { defaults.set(lastSource.rawValue, forKey: "ui.lastSource") } }
 
     var jmLoggedIn: Bool { !jmAVS.isEmpty }
@@ -34,6 +36,9 @@ final class AppSettings: ObservableObject {
         jmUsername = defaults.string(forKey: "jm.username") ?? ""
         jmAVS = defaults.string(forKey: "jm.avs") ?? ""
         readerMode = ReaderMode(rawValue: defaults.string(forKey: "reader.mode") ?? "") ?? .vertical
+        let savedConcurrency = defaults.integer(forKey: "dl.concurrency")
+        downloadConcurrency = savedConcurrency == 0 ? 4 : savedConcurrency
+        translateTags = defaults.object(forKey: "ui.translateTags") as? Bool ?? true
         lastSource = SourceKind(rawValue: defaults.string(forKey: "ui.lastSource") ?? "") ?? .nhentai
     }
 }

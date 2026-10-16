@@ -28,7 +28,7 @@ struct ComicSummary: Identifiable, Hashable, Codable {
     var id: String { "\(source.rawValue):\(sid)" }
 }
 
-struct ComicTag: Hashable, Identifiable {
+struct ComicTag: Hashable, Identifiable, Codable {
     var name: String
     var group: String?
     /// 點擊後用來搜尋的字串；nil 代表不可點擊
@@ -37,25 +37,25 @@ struct ComicTag: Hashable, Identifiable {
     var id: String { "\(group ?? "")|\(name)" }
 }
 
-struct Chapter: Identifiable, Hashable {
+struct Chapter: Identifiable, Hashable, Codable {
     var id: String
     var title: String
 }
 
-struct ImageSpec: Hashable {
+struct ImageSpec: Hashable, Codable {
     var url: URL
     var source: SourceKind
     /// 禁漫圖片的切割份數，0 或 1 代表不需還原
     var scramble: Int = 0
 }
 
-struct ReaderPage: Identifiable, Hashable {
+struct ReaderPage: Identifiable, Hashable, Codable {
     var index: Int
     var image: ImageSpec
     var id: Int { index }
 }
 
-struct ComicDetail {
+struct ComicDetail: Codable {
     var summary: ComicSummary
     var description: String?
     var authors: [String] = []

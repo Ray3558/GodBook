@@ -12,7 +12,9 @@ struct DetailView: View {
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var theme: ThemeStore
     @EnvironmentObject private var settings: AppSettings
+    @EnvironmentObject private var downloads: DownloadManager
     @State private var detail: ComicDetail?
+    @State private var isOffline = false
     @State private var errorMessage: String?
     @State private var reader: ReaderRoute?
 
@@ -98,7 +100,18 @@ struct DetailView: View {
     private func actions(_ detail: ComicDetail) -> some View {
         let progress = library.progress(for: shown)
         let resumeIndex = progress.flatMap { entry in detail.chapters.firstIndex { $0.id == entry.chapterId } }
-        return HStack(spacing: 12) {
+        return VStack(spacing: 12) {
+            readButtons(detail, progress: progress, resumeIndex: resumeIndex)
+            downloadAllButton(detail)
+            if isOffline {
+                Label("離線模式：顯示已下載的內容", systemImage: "wifi.slash")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func readButtons(_ detail: ComicDetail, progress: HistoryEntry?, resumeIndex: Int?) -> some View {
+        HStack(spacing: 12) {
             if let progress, let resumeIndex {
                 GlassButton(title: "繼續 \(progress.pageIndex + 1) 頁", systemImage: "play.fill", prominent: true) {
                     reader = ReaderRoute(detail: detail, chapterIndex: resumeIndex, startPage: progress.pageIndex)
@@ -111,6 +124,61 @@ struct DetailView: View {
                     reader = ReaderRoute(detail: detail, chapterIndex: 0, startPage: 0)
                 }
             }
+        }
+    }
+
+    private func downloadAllButton(_ detail: ComicDetail) -> some View {
+        let states = detail.chapters.map { downloads.item(detail.summary, $0) }
+        let finished = states.filter { $0?.state == .finished }.count
+        let active = states.compactMap { $0 }.filter { $0.state == .downloading || $0.state == .queued }
+        return Group {
+            if finished == detail.chapters.count {
+                GlassButton(title: "已下載（點此刪除）", systemImage: "checkmark.circle.fill") {
+                    downloads.removeComic(detail.summary)
+                }
+            } else if !active.isEmpty {
+                let done = states.compactMap { $0 }.reduce(0) { $0 + $1.done }
+                let total = states.compactMap { $0 }.reduce(0) { $0 + $1.total }
+                GlassButton(title: total > 0 ? "下載中 \(done)/\(total)（點此暫停）" : "等待下載…", systemImage: "arrow.down.circle.dotted") {
+                    downloads.pauseAll(of: detail.summary)
+                }
+            } else if states.contains(where: { $0?.state == .paused || $0?.state == .failed }) {
+                GlassButton(title: "繼續下載", systemImage: "arrow.down.circle") {
+                    downloads.resumeAll(of: detail.summary)
+                    downloads.enqueue(detail: detail, chapters: detail.chapters)
+                }
+            } else {
+                GlassButton(title: detail.chapters.count > 1 ? "下載全部章節" : "下載", systemImage: "arrow.down.circle") {
+                    downloads.enqueue(detail: detail, chapters: detail.chapters)
+                }
+            }
+        }
+        .disabled(isOffline && finished != detail.chapters.count)
+    }
+
+    @ViewBuilder
+    private func downloadAccessory(_ detail: ComicDetail, _ chapter: Chapter) -> some View {
+        let item = downloads.item(detail.summary, chapter)
+        switch item?.state {
+        case .finished:
+            Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+        case .downloading:
+            Button { downloads.pause(item!.id) } label: {
+                ProgressView(value: item!.progress).progressViewStyle(.circular).frame(width: 24, height: 24)
+            }
+            .buttonStyle(.plain)
+        case .queued:
+            Button { downloads.pause(item!.id) } label: { Image(systemName: "clock") }
+                .buttonStyle(.plain)
+        case .paused, .failed:
+            Button { downloads.resume(item!.id) } label: { Image(systemName: "play.circle") }
+                .buttonStyle(.plain)
+        case nil:
+            Button { downloads.enqueue(detail: detail, chapters: [chapter]) } label: {
+                Image(systemName: "arrow.down.circle")
+            }
+            .buttonStyle(.plain)
+            .disabled(isOffline)
         }
     }
 
@@ -130,11 +198,13 @@ struct DetailView: View {
     }
 
     private func tagLabel(_ tag: ComicTag) -> some View {
-        HStack(spacing: 4) {
+        let translate = settings.translateTags && shown.source == .nhentai
+        let title = translate ? TagTranslator.shared.translate(tag.name, group: tag.group) : tag.name
+        return HStack(spacing: 4) {
             if let group = tag.group, group != "tag" {
-                Text(group).foregroundStyle(.secondary)
+                Text(translate ? TagTranslator.shared.groupTitle(group) : group).foregroundStyle(.secondary)
             }
-            Text(tag.name)
+            Text(title)
         }
         .font(.caption)
         .padding(.horizontal, 10)
@@ -147,19 +217,21 @@ struct DetailView: View {
             Text("章節（\(detail.chapters.count)）").font(.headline)
             LazyVStack(spacing: 8) {
                 ForEach(Array(detail.chapters.enumerated()), id: \.element.id) { index, chapter in
-                    Button {
-                        reader = ReaderRoute(detail: detail, chapterIndex: index, startPage: 0)
-                    } label: {
-                        HStack {
-                            Text(chapter.title).lineLimit(1)
-                            Spacer()
-                            Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary)
+                    HStack(spacing: 12) {
+                        Button {
+                            reader = ReaderRoute(detail: detail, chapterIndex: index, startPage: 0)
+                        } label: {
+                            HStack {
+                                Text(chapter.title).lineLimit(1)
+                                Spacer(minLength: 0)
+                            }
+                            .contentShape(Rectangle())
                         }
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 12)
-                        .contentShape(Rectangle())
+                        .buttonStyle(.plain)
+                        downloadAccessory(detail, chapter).font(.title3)
                     }
-                    .buttonStyle(.plain)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
                     .glassCard(cornerRadius: 16, interactive: true)
                 }
             }
@@ -185,9 +257,18 @@ struct DetailView: View {
     private func load() async {
         errorMessage = nil
         do {
-            detail = try await SourceRegistry.source(summary.source).detail(of: summary)
+            let loaded = try await SourceRegistry.source(summary.source).detail(of: summary)
+            detail = loaded
+            isOffline = false
+            // 已下載過的作品，順手更新本機詳情快取
+            if !downloads.items(for: summary).isEmpty { DownloadStorage.saveDetail(loaded) }
         } catch {
-            errorMessage = error.localizedDescription
+            if let cached = DownloadStorage.loadDetail(summary) {
+                detail = cached
+                isOffline = true
+            } else {
+                errorMessage = error.localizedDescription
+            }
         }
     }
 }

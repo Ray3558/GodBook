@@ -4,9 +4,17 @@ import UIKit
 
 /// 禁漫行動端 API 的加解密與圖片還原，移植自 jmcomic (MIT) 的 JmCryptoTool / JmImageTool。
 enum JMCrypto {
-    static let appVersion = "2.1.7"
-    static let tokenSecret = "185Hcomic3PAPP7R"
-    static let tokenSecret2 = "18comicAPPContent"
+    /// 簽章密鑰會隨官方 App 版本更換；依序嘗試，記住可用的那一組。
+    /// 第一組來自 jmcomic，第二組（舊版）來自 jmcomic-downloader。
+    struct Profile {
+        let tokenSecret: String
+        let scrambleSecret: String
+        let version: String
+    }
+    static let profiles = [
+        Profile(tokenSecret: "185Hcomic3PAPP7R", scrambleSecret: "18comicAPPContent", version: "2.1.7"),
+        Profile(tokenSecret: "18comicAPP", scrambleSecret: "18comicAPPContent", version: "2.0.13"),
+    ]
     static let dataSecret = "185Hcomic3PAPP7R"
     static let domainServerSecret = "diosfjckwpqpdfjkvnqQjsik"
 
@@ -18,7 +26,7 @@ enum JMCrypto {
     }
 
     /// 回傳 (token, tokenparam)
-    static func token(ts: String, secret: String, version: String = appVersion) -> (String, String) {
+    static func token(ts: String, secret: String, version: String) -> (String, String) {
         (md5Hex(ts + secret), "\(ts),\(version)")
     }
 
