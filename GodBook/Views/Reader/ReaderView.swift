@@ -22,6 +22,8 @@ struct ReaderView: View {
     @State private var volume = VolumeKeyObserver()
     @State private var autoTurnTick = 0
     @State private var showChapterComments = false
+    @State private var startAtEnd = false
+    @ObservedObject private var appSettings = AppSettings.shared
 
     private let autoTurnTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
@@ -104,10 +106,13 @@ struct ReaderView: View {
         let mode = prefs.mode
         if mode.isPaged {
             PagedReader(pages: pages, current: $current, vertical: mode == .pagedVertical, rtl: mode.isRTL,
-                        prefs: prefs, onTap: handleTap, onQuickCollect: { collect($0) })
+                        prefs: prefs, onTap: handleTap, onQuickCollect: { collect($0) },
+                        nextTitle: edgeTitle(1), prevTitle: edgeTitle(-1),
+                        onEdge: { delta in step(delta, atEnd: delta < 0) })
         } else {
             ContinuousReader(pages: pages, current: $current, horizontal: mode != .vertical, rtl: mode.isRTL,
-                             prefs: prefs, onTap: handleTap, onQuickCollect: { collect($0) })
+                             prefs: prefs, onTap: handleTap, onQuickCollect: { collect($0) },
+                             nextTitle: edgeTitle(1), onNext: { step(1, atEnd: false) })
         }
     }
 
@@ -123,6 +128,13 @@ struct ReaderView: View {
         if mode.isRTL { delta = -delta }      // 右到左：左邊才是下一頁
         if prefs.reverseTap { delta = -delta }
         turn(delta)
+    }
+
+    /// 自動切章的過場頁標題；沒有該章或關閉了功能時回傳 nil
+    private func edgeTitle(_ delta: Int) -> String? {
+        guard appSettings.autoNextChapter else { return nil }
+        let index = chapterIndex + delta
+        return detail.chapters.indices.contains(index) ? detail.chapters[index].title : nil
     }
 
     private func toggleChrome() { withAnimation(.snappy) { showChrome.toggle() } }
@@ -321,13 +333,14 @@ struct ReaderView: View {
 
     // MARK: 章節與載入
 
-    private func selectChapter(_ index: Int) {
+    private func selectChapter(_ index: Int, atEnd: Bool = false) {
         guard detail.chapters.indices.contains(index), index != chapterIndex else { return }
+        startAtEnd = atEnd
         current = 0
         chapterIndex = index
     }
 
-    private func step(_ delta: Int) { selectChapter(chapterIndex + delta) }
+    private func step(_ delta: Int, atEnd: Bool = false) { selectChapter(chapterIndex + delta, atEnd: atEnd) }
 
     private func load() async {
         isLoading = true
@@ -340,6 +353,7 @@ struct ReaderView: View {
                 loaded = try await SourceRegistry.source(detail.summary.source).pages(of: detail, chapter: chapter)
             }
             pages = loaded
+            if startAtEnd { current = max(loaded.count - 1, 0); startAtEnd = false }
             if current >= loaded.count { current = 0 }
             isLoading = false
             library.record(detail.summary, chapter: chapter, pageIndex: current)

@@ -45,6 +45,7 @@ final class AppSettings: ObservableObject {
     @Stored("safe.hideLibrary", false) var safeHideLibrary: Bool           // 安全模式下整個隱藏「書庫」分頁
     @Stored("safe.marked", [String]()) var adultMarked: [String]           // 使用者額外標記為 18+ 的 venera 來源 key
     @Stored("safe.unmarked", [String]()) var adultUnmarked: [String]       // 使用者取消內建 18+ 標記的來源 key
+    @Stored("reader.autoNext", true) var autoNextChapter: Bool             // 翻/捲到章節盡頭時自動進入上一章或下一章
     @Stored("ui.language", "system") var language: String                  // system | zh-Hant | zh-Hans | en
     @Stored("ui.initialTab", 0) var initialTab: Int                       // 0 探索、1 書庫、2 設定
     @Stored("ui.reverseChapters", false) var reverseChapters: Bool

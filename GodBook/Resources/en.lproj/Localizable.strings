@@ -453,3 +453,6 @@
 "隱藏 18+ 內容" = "Hide 18+ content";
 "開啟後會隱藏 18+ 來源（nhentai、禁漫與標記為 18+ 的漫畫源），以及標題或標籤帶有成人字眼的作品，包含收藏、紀錄與下載列表。若已啟用 App 鎖，關閉安全模式需要驗證。" = "When on, 18+ sources (nhentai, JMComic and comic sources marked 18+) and works whose title or tags contain adult keywords are hidden, including in favorites, history and downloads. If App Lock is enabled, turning Safe Mode off requires authentication.";
 "同時隱藏整個書庫分頁" = "Also hide the whole Library tab";
+"下一章" = "Next chapter";
+"上一章" = "Previous chapter";
+"翻到章節盡頭自動進入下一章 / 上一章" = "Auto-continue to the next / previous chapter at the end";

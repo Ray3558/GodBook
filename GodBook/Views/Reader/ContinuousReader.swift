@@ -9,7 +9,11 @@ struct ContinuousReader: View {
     let prefs: ReaderPrefs
     let onTap: (CGPoint) -> Void
     let onQuickCollect: (Int) -> Void
+    /// 下一章標題；為 nil 表示不顯示章節盡頭的過場區
+    var nextTitle: String?
+    var onNext: () -> Void = {}
 
+    @State private var edgeVisible = false
     @State private var scrollID: Int?
     @State private var zoom: CGFloat = 1
     @State private var zoomBase: CGFloat = 1
@@ -38,7 +42,7 @@ struct ContinuousReader: View {
             .onAppear { size = geo.size }
         }
         .onChange(of: scrollID) { _, id in
-            if let id, id != current { current = id }
+            if let id, id < pages.count, id != current { current = id }
         }
         .onChange(of: current) { _, value in
             if scrollID != value { withAnimation(prefs.pageAnimation ? .easeInOut(duration: 0.25) : nil) { scrollID = value } }
@@ -53,11 +57,38 @@ struct ContinuousReader: View {
 
     @ViewBuilder
     private func items(_ container: CGSize) -> some View {
+        if rtl { edgeItem(container) }
         ForEach(ordered) { page in
             RemoteImageView(spec: page.image)
                 .frame(width: horizontal ? nil : container.width * zoom,
                        height: horizontal ? container.height * zoom : nil)
                 .id(page.index)
+        }
+        if !rtl { edgeItem(container) }
+    }
+
+    /// 章節盡頭的過場區：露出後稍等一下就自動進入下一章
+    @ViewBuilder
+    private func edgeItem(_ container: CGSize) -> some View {
+        if let nextTitle {
+            VStack(spacing: 10) {
+                ProgressView().tint(.white)
+                Text(L("下一章") + "\n" + nextTitle)
+                    .font(.callout)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.white.opacity(0.75))
+            }
+            .padding(24)
+            .frame(width: horizontal ? container.width : container.width,
+                   height: horizontal ? container.height : 220)
+            .onAppear {
+                edgeVisible = true
+                Task {
+                    try? await Task.sleep(nanoseconds: 700_000_000)
+                    if edgeVisible, didStart, current >= pages.count - 1 { onNext() }
+                }
+            }
+            .onDisappear { edgeVisible = false }
         }
     }
 

@@ -3,6 +3,7 @@ import SwiftUI
 /// 閱讀設定表單（全域設定頁與閱讀器內的設定面板共用）
 struct ReaderPrefsForm: View {
     @Binding var prefs: ReaderPrefs
+    @ObservedObject private var app = AppSettings.shared
 
     var body: some View {
         VStack(spacing: 16) {
@@ -32,6 +33,7 @@ struct ReaderPrefsForm: View {
                 Stepper(prefs.autoTurnSeconds == 0 ? L("自動翻頁：關閉") : L("自動翻頁：每 %@ 秒", "\(prefs.autoTurnSeconds)"),
                         value: $prefs.autoTurnSeconds, in: 0...60)
                 Stepper(L("預載後面 %@ 張", "\(prefs.preloadCount)"), value: $prefs.preloadCount, in: 0...10)
+                Toggle(L("翻到章節盡頭自動進入下一章 / 上一章"), isOn: $app.autoNextChapter)
             }
 
             GlassPanel(title: L("畫面")) {

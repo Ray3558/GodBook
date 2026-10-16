@@ -37,6 +37,39 @@ final class ZoomPageViewController: UIViewController {
     }
 }
 
+/// 章節交界的過場頁：滑到這頁就會自動切換到上一章 / 下一章。
+final class EdgePageViewController: UIViewController {
+    let edge: Int // +1：本章最後一頁之後（下一章）；-1：第一頁之前（上一章）
+    private let text: String
+
+    init(edge: Int, text: String) {
+        self.edge = edge
+        self.text = text
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .black
+        let label = UILabel()
+        label.text = text
+        label.textColor = UIColor(white: 1, alpha: 0.75)
+        label.font = .preferredFont(forTextStyle: .callout)
+        label.numberOfLines = 0
+        label.textAlignment = .center
+        label.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(label)
+        NSLayoutConstraint.activate([
+            label.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            label.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            label.leadingAnchor.constraint(greaterThanOrEqualTo: view.leadingAnchor, constant: 32),
+            label.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor, constant: -32),
+        ])
+    }
+}
+
 /// 分頁閱讀器（左到右 / 右到左 / 上到下），以 UIPageViewController 實作，每頁可縮放。
 struct PagedReader: UIViewControllerRepresentable {
     let pages: [ReaderPage]
@@ -46,6 +79,10 @@ struct PagedReader: UIViewControllerRepresentable {
     let prefs: ReaderPrefs
     let onTap: (CGPoint) -> Void
     let onQuickCollect: (Int) -> Void
+    /// 下一章 / 上一章的標題；為 nil 表示不顯示過場頁（沒有該章，或關閉了自動切章）
+    var nextTitle: String?
+    var prevTitle: String?
+    var onEdge: (Int) -> Void = { _ in }
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -74,7 +111,13 @@ struct PagedReader: UIViewControllerRepresentable {
 
         init(_ parent: PagedReader) { self.parent = parent }
 
-        private func makeController(for index: Int) -> ZoomPageViewController? {
+        private func makeController(for index: Int) -> UIViewController? {
+            if index == parent.pages.count, let title = parent.nextTitle {
+                return EdgePageViewController(edge: 1, text: L("下一章") + "\n" + title)
+            }
+            if index == -1, let title = parent.prevTitle {
+                return EdgePageViewController(edge: -1, text: L("上一章") + "\n" + title)
+            }
             guard parent.pages.indices.contains(index) else { return nil }
             let controller = ZoomPageViewController(index: index, spec: parent.pages[index].image, prefs: parent.prefs)
             controller.onTap = { [weak self] point in self?.parent.onTap(point) }
@@ -90,6 +133,12 @@ struct PagedReader: UIViewControllerRepresentable {
             displayed = target
         }
 
+        private func position(of controller: UIViewController) -> Int? {
+            if let page = controller as? ZoomPageViewController { return page.index }
+            if let edge = controller as? EdgePageViewController { return edge.edge > 0 ? parent.pages.count : -1 }
+            return nil
+        }
+
         func syncIfNeeded(_ controller: UIPageViewController) {
             guard displayed != parent.current else { return }
             show(parent.current, animated: parent.prefs.pageAnimation, in: controller)
@@ -99,21 +148,28 @@ struct PagedReader: UIViewControllerRepresentable {
 
         func pageViewController(_ pageViewController: UIPageViewController,
                                 viewControllerBefore viewController: UIViewController) -> UIViewController? {
-            guard let page = viewController as? ZoomPageViewController else { return nil }
-            return makeController(for: parent.rtl ? page.index + 1 : page.index - 1)
+            guard let position = position(of: viewController) else { return nil }
+            return makeController(for: parent.rtl ? position + 1 : position - 1)
         }
 
         func pageViewController(_ pageViewController: UIPageViewController,
                                 viewControllerAfter viewController: UIViewController) -> UIViewController? {
-            guard let page = viewController as? ZoomPageViewController else { return nil }
-            return makeController(for: parent.rtl ? page.index - 1 : page.index + 1)
+            guard let position = position(of: viewController) else { return nil }
+            return makeController(for: parent.rtl ? position - 1 : position + 1)
         }
 
         // MARK: Delegate
 
         func pageViewController(_ pageViewController: UIPageViewController, didFinishAnimating finished: Bool,
                                 previousViewControllers: [UIViewController], transitionCompleted completed: Bool) {
-            guard completed, let page = pageViewController.viewControllers?.first as? ZoomPageViewController else { return }
+            guard completed, let shown = pageViewController.viewControllers?.first else { return }
+            if let edge = shown as? EdgePageViewController {
+                displayed = parent.current // 停在過場頁，不要被同步邏輯拉回最後一頁
+                let delta = edge.edge
+                DispatchQueue.main.async { self.parent.onEdge(delta) }
+                return
+            }
+            guard let page = shown as? ZoomPageViewController else { return }
             displayed = page.index
             DispatchQueue.main.async { self.parent.current = page.index }
         }
