@@ -471,10 +471,10 @@ final class VeneraBridge {
         // 第 1 次：一般連線；第 2 次：不壓縮 + 只走 TCP；第 3 次：再加上不經過任何代理；
         // 第 4 次：完全不用系統網路層（URLSession），自己用 Network.framework 收發（venera 也不是用系統網路層）
         if attempt >= 3 {
-            let final = request
+            let finalRequest = request
             Task.detached {
                 do {
-                    let reply = try await RawHTTP.fetch(final)
+                    let reply = try await RawHTTP.fetch(finalRequest)
                     deliver(reply.status, reply.headers, reply.body)
                 } catch {
                     let message = "\(host)：\(error.localizedDescription) #4"
