@@ -75,7 +75,7 @@ final class FavoritesStore: ObservableObject {
 
     func allTags(in folderID: UUID) -> [String] {
         guard let i = index(of: folderID) else { return [] }
-        return Array(Set(folders[i].items.flatMap(\.tags))).sorted()
+        return Array(Set(folders[i].visibleItems.flatMap(\.tags))).sorted()
     }
 
     // MARK: 單筆

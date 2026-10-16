@@ -3,6 +3,9 @@ import SwiftUI
 struct RootView: View {
     @State private var tab = AppSettings.shared.initialTab
     @ObservedObject private var deepLink = DeepLink.shared
+    @ObservedObject private var settings = AppSettings.shared
+
+    private var showLibrary: Bool { !(settings.safeMode && settings.safeHideLibrary) }
 
     var body: some View {
         TabView(selection: $tab) {
@@ -13,12 +16,14 @@ struct RootView: View {
             .tabItem { Label(L("探索"), systemImage: "square.grid.2x2.fill") }
             .tag(0)
 
-            NavigationStack {
-                LibraryView()
-                    .comicDestinations()
+            if showLibrary {
+                NavigationStack {
+                    LibraryView()
+                        .comicDestinations()
+                }
+                .tabItem { Label(L("書庫"), systemImage: "books.vertical.fill") }
+                .tag(1)
             }
-            .tabItem { Label(L("書庫"), systemImage: "books.vertical.fill") }
-            .tag(1)
 
             NavigationStack {
                 SettingsView()
@@ -27,6 +32,7 @@ struct RootView: View {
             .tag(2)
         }
         .overlay { ToastOverlay() }
+        .onChange(of: showLibrary) { _, shown in if !shown && tab == 1 { tab = 0 } }
         .onChange(of: deepLink.summary) { _, value in if value != nil { tab = 0 } }
         .task {
             DownloadManager.shared.resumeQueued()

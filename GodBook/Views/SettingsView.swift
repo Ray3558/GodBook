@@ -141,6 +141,7 @@ struct SettingsView: View {
             Toggle(L("隱藏 18+ 內容"), isOn: Binding(
                 get: { settings.safeMode },
                 set: { value in Task { _ = await SafeMode.set(value) } }))
+            Toggle(L("同時隱藏整個書庫分頁"), isOn: $settings.safeHideLibrary)
             Text(L("開啟後會隱藏 18+ 來源（nhentai、禁漫與標記為 18+ 的漫畫源），以及標題或標籤帶有成人字眼的作品，包含收藏、紀錄與下載列表。若已啟用 App 鎖，關閉安全模式需要驗證。"))
                 .font(.footnote).foregroundStyle(.secondary)
             link(L("管理 18+ 來源標記"), systemImage: "checklist") { SafeModeSourcesView() }

@@ -3,6 +3,9 @@ import UniformTypeIdentifiers
 
 struct LocalComicsView: View {
     @EnvironmentObject private var local: LocalLibrary
+    @ObservedObject private var safe = AppSettings.shared
+
+    private var visibleComics: [ComicSummary] { local.comics.filter { !SafeMode.hides($0) } }
     @State private var importing = false
     @State private var message: String?
     @State private var renaming: ComicSummary?
@@ -29,7 +32,7 @@ struct LocalComicsView: View {
                 .font(.footnote).foregroundStyle(.secondary).padding(.horizontal, 16)
             if let message { Text(message).font(.footnote).foregroundStyle(.red).padding(.horizontal, 16) }
 
-            if local.comics.isEmpty {
+            if visibleComics.isEmpty {
                 VStack(spacing: 12) {
                     Image(systemName: "tray").font(.largeTitle)
                     Text(L("還沒有匯入的漫畫"))
@@ -38,7 +41,7 @@ struct LocalComicsView: View {
             } else {
                 let columns = [GridItem(.adaptive(minimum: 150, maximum: 220), spacing: 12)]
                 LazyVGrid(columns: columns, spacing: 12) {
-                    ForEach(local.comics) { comic in
+                    ForEach(visibleComics) { comic in
                         NavigationLink(value: comic) { ComicCard(comic: comic) }
                             .buttonStyle(.plain)
                             .contextMenu {

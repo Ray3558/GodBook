@@ -18,7 +18,7 @@ struct FolderPickerSheet: View {
                         onPick(folder.id)
                         dismiss()
                     } label: {
-                        HStack { Label(folder.name, systemImage: "folder"); Spacer(); Text("\(folder.items.count)").foregroundStyle(.secondary) }
+                        HStack { Label(folder.name, systemImage: "folder"); Spacer(); Text("\(folder.visibleItems.count)").foregroundStyle(.secondary) }
                     }
                 }
                 Button { creating = true } label: { Label(L("新增資料夾"), systemImage: "folder.badge.plus") }
@@ -60,7 +60,7 @@ struct FavoriteToggleSheet: View {
                         HStack {
                             Label(folder.name, systemImage: included ? "checkmark.circle.fill" : "circle")
                             Spacer()
-                            Text("\(folder.items.count)").foregroundStyle(.secondary)
+                            Text("\(folder.visibleItems.count)").foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -179,7 +179,7 @@ struct FavoritesView: View {
                 ForEach(favorites.folders) { folder in
                     let selected = folder.id == currentID
                     Button { folderID = folder.id; tagFilter = nil; selection = [] } label: {
-                        Text("\(folder.name)（\(folder.items.count)）")
+                        Text("\(folder.name)（\(folder.visibleItems.count)）")
                             .font(.subheadline.weight(selected ? .bold : .regular))
                             .padding(.horizontal, 14).padding(.vertical, 8)
                     }

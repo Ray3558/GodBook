@@ -22,9 +22,11 @@ struct DownloadsView: View {
     @State private var exported: ExportedFile?
     @State private var errorMessage: String?
 
+    private var visibleComics: [ComicSummary] { downloads.comics.filter { !SafeMode.hides($0) } }
+
     var body: some View {
         Group {
-            if downloads.comics.isEmpty {
+            if visibleComics.isEmpty {
                 VStack(spacing: 12) {
                     Image(systemName: "arrow.down.circle").font(.largeTitle)
                     Text(L("還沒有下載內容"))
@@ -36,7 +38,7 @@ struct DownloadsView: View {
                 .padding(.top, 80)
             } else {
                 LazyVStack(spacing: 10) {
-                    ForEach(downloads.comics.filter { !SafeMode.hides($0) }) { comic in row(comic) }
+                    ForEach(visibleComics) { comic in row(comic) }
                 }
                 .padding(12)
             }

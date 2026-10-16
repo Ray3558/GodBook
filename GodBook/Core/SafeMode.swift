@@ -60,3 +60,8 @@ enum SafeMode {
         }
     }
 }
+
+extension FavoriteFolder {
+    /// 安全模式下可見的項目
+    var visibleItems: [FavoriteItem] { items.filter { !SafeMode.hides($0.summary) } }
+}

@@ -42,6 +42,7 @@ final class AppSettings: ObservableObject {
     @Stored("list.blocked", [String]()) var blockedWords: [String]
     @Stored("list.blockedComments", [String]()) var blockedCommentWords: [String]
     @Stored("safe.enabled", false) var safeMode: Bool                      // 安全模式：隱藏 18+
+    @Stored("safe.hideLibrary", false) var safeHideLibrary: Bool           // 安全模式下整個隱藏「書庫」分頁
     @Stored("safe.marked", [String]()) var adultMarked: [String]           // 使用者額外標記為 18+ 的 venera 來源 key
     @Stored("safe.unmarked", [String]()) var adultUnmarked: [String]       // 使用者取消內建 18+ 標記的來源 key
     @Stored("ui.language", "system") var language: String                  // system | zh-Hant | zh-Hans | en
