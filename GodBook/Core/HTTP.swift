@@ -29,13 +29,13 @@ enum HTTP {
 
     static func data(for request: URLRequest) async throws -> (Data, HTTPURLResponse) {
         let (data, response) = try await session.data(for: request)
-        guard let http = response as? HTTPURLResponse else { throw AppError.message("無效的伺服器回應") }
+        guard let http = response as? HTTPURLResponse else { throw AppError.message(L("無效的伺服器回應")) }
         return (data, http)
     }
 
     static func json(_ data: Data) throws -> [String: Any] {
         guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw AppError.message("無法解析伺服器資料")
+            throw AppError.message(L("無法解析伺服器資料"))
         }
         return object
     }

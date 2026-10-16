@@ -15,10 +15,10 @@ struct DetailExtraBar: View {
     var body: some View {
         let bar = ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                if caps.comments { chip("評論", "text.bubble") { showComments = true } }
-                if caps.likeComic { chip(liked == true ? "已讚" : "讚", liked == true ? "heart.fill" : "heart") { Task { await toggleLike() } } }
-                if caps.rating { chip("評分", "star") { showRating = true } }
-                if caps.remoteFavorites { chip("雲端收藏", "icloud") { showRemote = true } }
+                if caps.comments { chip(L("評論"), "text.bubble") { showComments = true } }
+                if caps.likeComic { chip(liked == true ? L("已讚") : L("讚"), liked == true ? "heart.fill" : "heart") { Task { await toggleLike() } } }
+                if caps.rating { chip(L("評分"), "star") { showRating = true } }
+                if caps.remoteFavorites { chip(L("雲端收藏"), "icloud") { showRemote = true } }
                 shareChip
             }
         }
@@ -29,7 +29,7 @@ struct DetailExtraBar: View {
                               context: CommentContext(summary: detail.summary, subId: detail.subId, chapterId: nil))
             }
             .sheet(isPresented: $showRemote) { RemoteFavoriteSheet(summary: detail.summary) }
-            .confirmationDialog("給這部作品幾顆星？", isPresented: $showRating, titleVisibility: .visible) {
+            .confirmationDialog(L("給這部作品幾顆星？"), isPresented: $showRating, titleVisibility: .visible) {
                 ForEach(1...5, id: \.self) { stars in
                     Button(String(repeating: "★", count: stars)) { Task { await rate(stars) } }
                 }
@@ -50,13 +50,13 @@ struct DetailExtraBar: View {
     private var shareChip: some View {
         if let text = detail.url, let url = URL(string: text) {
             ShareLink(item: url, subject: Text(detail.summary.title)) {
-                Label("分享", systemImage: "square.and.arrow.up").font(.subheadline.weight(.medium))
+                Label(L("分享"), systemImage: "square.and.arrow.up").font(.subheadline.weight(.medium))
                     .padding(.horizontal, 14).padding(.vertical, 9)
             }
             .buttonStyle(.plain).glassCapsule(interactive: true)
         } else {
             ShareLink(item: "\(detail.summary.title)（\(detail.summary.source.title) \(detail.summary.sid)）") {
-                Label("分享", systemImage: "square.and.arrow.up").font(.subheadline.weight(.medium))
+                Label(L("分享"), systemImage: "square.and.arrow.up").font(.subheadline.weight(.medium))
                     .padding(.horizontal, 14).padding(.vertical, 9)
             }
             .buttonStyle(.plain).glassCapsule(interactive: true)
@@ -70,7 +70,7 @@ struct DetailExtraBar: View {
         do {
             try await source.setLiked(detail.summary, liked: target)
             liked = target
-            ToastCenter.shared.show(target ? "已按讚" : "已取消讚")
+            ToastCenter.shared.show(target ? L("已按讚") : L("已取消讚"))
         } catch { ToastCenter.shared.show(error.localizedDescription) }
     }
 
@@ -79,7 +79,7 @@ struct DetailExtraBar: View {
         defer { busy = false }
         do {
             try await source.rate(detail.summary, stars: stars * 2)
-            ToastCenter.shared.show("已評 \(stars) 顆星")
+            ToastCenter.shared.show(L("已評 %@ 顆星", "\(stars)"))
         } catch { ToastCenter.shared.show(error.localizedDescription) }
     }
 }
@@ -101,12 +101,12 @@ struct RemoteFavoriteSheet: View {
         NavigationStack {
             List {
                 if loading {
-                    HStack { ProgressView(); Text("載入中…") }
+                    HStack { ProgressView(); Text(L("載入中…")) }
                 } else if let errorMessage {
                     VStack(alignment: .leading, spacing: 8) {
                         Text(errorMessage).font(.footnote)
-                        Text("若顯示需要登入，請到「設定 → 來源管理」登入該來源的帳號。").font(.footnote).foregroundStyle(.secondary)
-                        Button("重試") { Task { await load() } }
+                        Text(L("若顯示需要登入，請到「設定 → 來源管理」登入該來源的帳號。")).font(.footnote).foregroundStyle(.secondary)
+                        Button(L("重試")) { Task { await load() } }
                     }
                 } else if let state {
                     ForEach(state.folders) { folder in
@@ -120,22 +120,22 @@ struct RemoteFavoriteSheet: View {
                         }
                         .swipeActions {
                             if state.canManageFolders {
-                                Button("刪除", role: .destructive) { Task { await deleteFolder(folder) } }
+                                Button(L("刪除"), role: .destructive) { Task { await deleteFolder(folder) } }
                             }
                         }
                     }
                     if state.canManageFolders {
-                        Button { creating = true } label: { Label("新增資料夾", systemImage: "folder.badge.plus") }
+                        Button { creating = true } label: { Label(L("新增資料夾"), systemImage: "folder.badge.plus") }
                     }
                 }
             }
-            .navigationTitle("雲端收藏")
+            .navigationTitle(L("雲端收藏"))
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("完成") { dismiss() } } }
-            .alert("新增資料夾", isPresented: $creating) {
-                TextField("名稱", text: $newName)
-                Button("建立") { Task { await addFolder() } }
-                Button("取消", role: .cancel) { newName = "" }
+            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button(L("完成")) { dismiss() } } }
+            .alert(L("新增資料夾"), isPresented: $creating) {
+                TextField(L("名稱"), text: $newName)
+                Button(L("建立")) { Task { await addFolder() } }
+                Button(L("取消"), role: .cancel) { newName = "" }
             }
             .task { await load() }
         }
@@ -189,7 +189,7 @@ struct ThumbnailStrip: View {
         Group {
             if !urls.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("預覽").font(.headline)
+                    Text(L("預覽")).font(.headline)
                     ScrollView(.horizontal, showsIndicators: false) {
                         LazyHStack(spacing: 8) {
                             ForEach(Array(urls.enumerated()), id: \.offset) { index, string in
@@ -204,7 +204,7 @@ struct ThumbnailStrip: View {
                             }
                             if next != nil {
                                 Button { Task { await loadMore() } } label: {
-                                    VStack { if loading { ProgressView() } else { Image(systemName: "ellipsis"); Text("更多").font(.caption2) } }
+                                    VStack { if loading { ProgressView() } else { Image(systemName: "ellipsis"); Text(L("更多")).font(.caption2) } }
                                         .frame(width: 60, height: 130)
                                 }
                                 .buttonStyle(.plain).glassCard(cornerRadius: 10)

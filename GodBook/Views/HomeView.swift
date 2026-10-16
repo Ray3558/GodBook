@@ -60,8 +60,8 @@ struct HomeView: View {
             if settings.enabledSources.isEmpty {
                 VStack(spacing: 10) {
                     Image(systemName: "square.slash").font(.largeTitle)
-                    Text("沒有啟用的來源")
-                    Text("到「設定 → 來源管理」開啟至少一個來源").font(.footnote)
+                    Text(L("沒有啟用的來源"))
+                    Text(L("到「設定 → 來源管理」開啟至少一個來源")).font(.footnote)
                 }
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity)
@@ -76,7 +76,7 @@ struct HomeView: View {
         }
         .navigationTitle("GodBook")
         .navigationBarTitleDisplayMode(.inline)
-        .searchable(text: $searchText, prompt: settings.lastSource == .nhentai ? "搜尋標籤、關鍵字或 ID" : "搜尋關鍵字") {
+        .searchable(text: $searchText, prompt: settings.lastSource == .nhentai ? L("搜尋標籤、關鍵字或 ID") : L("搜尋關鍵字")) {
             suggestionContent
         }
         .onSubmit(of: .search) { submitSearch() }
@@ -96,9 +96,9 @@ struct HomeView: View {
                 }
                 Menu {
                     Button { aggregatedQuery = AggregatedRoute(query: searchText.trimmingCharacters(in: .whitespaces)) } label: {
-                        Label("聚合搜尋（多個來源）", systemImage: "magnifyingglass.circle")
+                        Label(L("聚合搜尋（多個來源）"), systemImage: "magnifyingglass.circle")
                     }
-                    Button { openFromClipboard() } label: { Label("從剪貼簿開啟連結", systemImage: "doc.on.clipboard") }
+                    Button { openFromClipboard() } label: { Label(L("從剪貼簿開啟連結"), systemImage: "doc.on.clipboard") }
                 } label: { Image(systemName: "ellipsis.circle") }
                 if source.sortOptions.count > 1 {
                     SortMenu(options: source.sortOptions, selection: currentSort.id) {
@@ -232,12 +232,12 @@ struct HomeView: View {
 
     private func openFromClipboard() {
         guard let text = UIPasteboard.general.string, !text.isEmpty else {
-            ToastCenter.shared.show("剪貼簿是空的")
+            ToastCenter.shared.show(L("剪貼簿是空的"))
             return
         }
         Task {
             if let found = await LinkResolver.resolve(text) { directOpen = found }
-            else { ToastCenter.shared.show("剪貼簿的內容不是可辨識的漫畫連結") }
+            else { ToastCenter.shared.show(L("剪貼簿的內容不是可辨識的漫畫連結")) }
         }
     }
 

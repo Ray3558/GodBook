@@ -26,8 +26,8 @@ struct DownloadsView: View {
             if downloads.comics.isEmpty {
                 VStack(spacing: 12) {
                     Image(systemName: "arrow.down.circle").font(.largeTitle)
-                    Text("還沒有下載內容")
-                    Text("在作品詳情頁按「下載」即可離線閱讀")
+                    Text(L("還沒有下載內容"))
+                    Text(L("在作品詳情頁按「下載」即可離線閱讀"))
                         .font(.footnote)
                 }
                 .foregroundStyle(.secondary)
@@ -41,8 +41,8 @@ struct DownloadsView: View {
             }
         }
         .sheet(item: $exported) { file in ShareSheet(urls: [file.url]) }
-        .alert("匯出失敗", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
-            Button("好") {}
+        .alert(L("匯出失敗"), isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            Button(L("好")) {}
         } message: {
             Text(errorMessage ?? "")
         }
@@ -65,7 +65,7 @@ struct DownloadsView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 VStack(alignment: .leading, spacing: 6) {
                     Text(comic.title).font(.subheadline.weight(.semibold)).lineLimit(2)
-                    Text("\(comic.source.title) · \(finished)/\(items.count) 章完成")
+                    Text(L("%@ · %@/%@ 章完成", "\(comic.source.title)", "\(finished)", "\(items.count)"))
                         .font(.caption).foregroundStyle(.secondary)
                     if active || total > done {
                         ProgressView(value: total > 0 ? Double(done) / Double(total) : 0)
@@ -93,10 +93,10 @@ struct DownloadsView: View {
                         ForEach(ExportFormat.allCases) { format in
                             Button(format.title) { export(comic, format) }
                         }
-                    } label: { Label("匯出", systemImage: "square.and.arrow.up") }
+                    } label: { Label(L("匯出"), systemImage: "square.and.arrow.up") }
                 }
                 Button(role: .destructive) { downloads.removeComic(comic) } label: {
-                    Label("刪除下載", systemImage: "trash")
+                    Label(L("刪除下載"), systemImage: "trash")
                 }
             }
         }

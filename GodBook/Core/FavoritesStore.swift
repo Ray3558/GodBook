@@ -12,10 +12,10 @@ enum FavoriteSort: String, Codable, CaseIterable, Identifiable {
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .addedDesc: "加入時間（新到舊）"
-        case .addedAsc: "加入時間（舊到新）"
-        case .title: "標題"
-        case .source: "來源"
+        case .addedDesc: L("加入時間（新到舊）")
+        case .addedAsc: L("加入時間（舊到新）")
+        case .title: L("標題")
+        case .source: L("來源")
         }
     }
 }
@@ -41,7 +41,7 @@ final class FavoritesStore: ObservableObject {
         } else {
             // 舊版只有單一清單：搬進「預設」資料夾
             let legacy = Storage.load([ComicSummary].self, from: Self.legacyFile) ?? []
-            folders = [FavoriteFolder(name: "預設", items: legacy.map { FavoriteItem(summary: $0) })]
+            folders = [FavoriteFolder(name: L("預設"), items: legacy.map { FavoriteItem(summary: $0) })]
         }
     }
 
@@ -108,7 +108,7 @@ final class FavoritesStore: ObservableObject {
 
     @discardableResult
     func createFolder(_ name: String) -> UUID {
-        let folder = FavoriteFolder(name: name.trimmingCharacters(in: .whitespaces).isEmpty ? "新資料夾" : name)
+        let folder = FavoriteFolder(name: name.trimmingCharacters(in: .whitespaces).isEmpty ? L("新資料夾") : name)
         folders.append(folder)
         persist()
         return folder.id

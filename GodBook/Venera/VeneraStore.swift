@@ -52,7 +52,7 @@ final class VeneraStore: ObservableObject {
                 let info = try await VeneraRuntime.shared.describe(key: key)
                 apply(info)
             } catch {
-                VeneraLog.shared.add("error", "載入 \(key)", error.localizedDescription)
+                VeneraLog.shared.add("error", L("載入 %@", "\(key)"), error.localizedDescription)
             }
         }
 
@@ -80,7 +80,7 @@ final class VeneraStore: ObservableObject {
         var updated = 0
         for entry in pending {
             do { try await self.install(entry: entry, indexURL: indexURL); updated += 1 }
-            catch { VeneraLog.shared.add("error", "更新 \(entry.name)", error.localizedDescription) }
+            catch { VeneraLog.shared.add("error", L("更新 %@", "\(entry.name)"), error.localizedDescription) }
         }
         availableUpdates = []
         return updated
@@ -108,7 +108,7 @@ final class VeneraStore: ObservableObject {
                 _ = try await install(js: js)
                 defaults.set(entry.version, forKey: versionKey)
             } catch {
-                VeneraLog.shared.add("error", "內建 \(entry.name)", error.localizedDescription)
+                VeneraLog.shared.add("error", L("內建 %@", "\(entry.name)"), error.localizedDescription)
             }
         }
     }
@@ -158,7 +158,7 @@ final class VeneraStore: ObservableObject {
 
     func fetchIndex(_ urlString: String) async throws -> [VeneraIndexEntry] {
         guard let url = URL(string: urlString.trimmingCharacters(in: .whitespacesAndNewlines)) else {
-            throw AppError.message("網址無效")
+            throw AppError.message(L("網址無效"))
         }
         let (data, response) = try await HTTP.data(for: URLRequest(url: url))
         guard response.statusCode == 200 else { throw AppError.http(response.statusCode) }
@@ -172,7 +172,7 @@ final class VeneraStore: ObservableObject {
         } else if let path = entry.path, let base = URL(string: indexURL)?.deletingLastPathComponent() {
             target = base.appendingPathComponent(path)
         } else {
-            throw AppError.message("索引項目缺少檔案位置")
+            throw AppError.message(L("索引項目缺少檔案位置"))
         }
         try await install(from: target)
     }
@@ -180,7 +180,7 @@ final class VeneraStore: ObservableObject {
     func install(from url: URL) async throws {
         let (data, response) = try await HTTP.data(for: URLRequest(url: url))
         guard response.statusCode == 200 else { throw AppError.http(response.statusCode) }
-        guard let js = String(data: data, encoding: .utf8) else { throw AppError.message("腳本不是 UTF-8 文字") }
+        guard let js = String(data: data, encoding: .utf8) else { throw AppError.message(L("腳本不是 UTF-8 文字")) }
         try await install(js: js)
     }
 }

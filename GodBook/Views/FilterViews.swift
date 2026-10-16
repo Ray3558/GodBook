@@ -19,7 +19,7 @@ struct FilterSheet: View {
                             .pickerStyle(.menu)
                         case .dropdown:
                             Picker(group.title, selection: binding(group)) {
-                                Text("不限").tag("")
+                                Text(L("不限")).tag("")
                                 ForEach(group.options, id: \.value) { Text($0.title).tag($0.value) }
                             }
                             .pickerStyle(.menu)
@@ -31,12 +31,12 @@ struct FilterSheet: View {
                     }
                 }
                 Section {
-                    Button("全部還原", role: .destructive) { values = [:] }
+                    Button(L("全部還原"), role: .destructive) { values = [:] }
                 }
             }
-            .navigationTitle("篩選")
+            .navigationTitle(L("篩選"))
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("完成") { dismiss() } } }
+            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button(L("完成")) { dismiss() } } }
         }
         .presentationDetents([.medium, .large])
     }
@@ -71,7 +71,7 @@ struct CategoriesView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 if sections.isEmpty {
-                    Text("這個來源沒有分類頁").foregroundStyle(.secondary).frame(maxWidth: .infinity).padding(.top, 60)
+                    Text(L("這個來源沒有分類頁")).foregroundStyle(.secondary).frame(maxWidth: .infinity).padding(.top, 60)
                 }
                 ForEach(sections) { section in
                     VStack(alignment: .leading, spacing: 10) {
@@ -95,7 +95,7 @@ struct CategoriesView: View {
             .padding(16)
         }
         .themedScreen()
-        .navigationTitle("分類")
+        .navigationTitle(L("分類"))
         .navigationBarTitleDisplayMode(.inline)
     }
 }
@@ -126,7 +126,7 @@ struct AggregatedSearchView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 10) {
-                    TextField("搜尋關鍵字", text: $query)
+                    TextField(L("搜尋關鍵字"), text: $query)
                         .textFieldStyle(.roundedBorder)
                         .submitLabel(.search)
                         .onSubmit { run() }
@@ -146,7 +146,7 @@ struct AggregatedSearchView: View {
                             }
                         }
                     }
-                    GlassButton(title: running ? "搜尋中…" : "搜尋", systemImage: "magnifyingglass", prominent: true) { run() }
+                    GlassButton(title: running ? L("搜尋中…") : L("搜尋"), systemImage: "magnifyingglass", prominent: true) { run() }
                         .disabled(running || selected.isEmpty || query.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
                 .padding(14)
@@ -159,7 +159,7 @@ struct AggregatedSearchView: View {
             .padding(16)
         }
         .themedScreen()
-        .navigationTitle("聚合搜尋")
+        .navigationTitle(L("聚合搜尋"))
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             guard !didInit else { return }
@@ -176,7 +176,7 @@ struct AggregatedSearchView: View {
                 Text(kind.title).font(.headline)
                 Spacer()
                 NavigationLink(value: SearchRoute(source: kind, query: query, title: "\(kind.title)：\(query)")) {
-                    Text("更多").font(.footnote)
+                    Text(L("更多")).font(.footnote)
                 }
             }
             switch outcome {
@@ -186,7 +186,7 @@ struct AggregatedSearchView: View {
                 Text(message).font(.footnote).foregroundStyle(.secondary)
             case .items(let list):
                 if list.isEmpty {
-                    Text("沒有結果").font(.footnote).foregroundStyle(.secondary)
+                    Text(L("沒有結果")).font(.footnote).foregroundStyle(.secondary)
                 } else {
                     ScrollView(.horizontal, showsIndicators: false) {
                         LazyHStack(spacing: 10) {

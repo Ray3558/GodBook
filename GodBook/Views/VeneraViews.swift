@@ -29,7 +29,7 @@ struct VeneraSourcesView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                Panel(title: "顯示在首頁的來源") {
+                Panel(title: L("顯示在首頁的來源")) {
                     ForEach(SourceKind.all) { kind in
                         Toggle(isOn: Binding(
                             get: { settings.isEnabled(kind) },
@@ -37,13 +37,13 @@ struct VeneraSourcesView: View {
                             Text(kind.title)
                         }
                     }
-                    Text("關閉後該來源不會出現在首頁與雲端收藏，也不會發出任何請求；已安裝的腳本與設定都會保留，隨時可重新開啟。")
+                    Text(L("關閉後該來源不會出現在首頁與雲端收藏，也不會發出任何請求；已安裝的腳本與設定都會保留，隨時可重新開啟。"))
                         .font(.footnote).foregroundStyle(.secondary)
                 }
 
-                Panel(title: "已安裝（\(store.sources.count)）") {
+                Panel(title: L("已安裝（%@）", "\(store.sources.count)")) {
                     if store.isBootstrapping && store.sources.isEmpty {
-                        HStack { ProgressView(); Text("載入內建漫畫源…").foregroundStyle(.secondary) }
+                        HStack { ProgressView(); Text(L("載入內建漫畫源…")).foregroundStyle(.secondary) }
                     }
                     ForEach(store.sources) { info in
                         NavigationLink {
@@ -63,46 +63,46 @@ struct VeneraSourcesView: View {
                         Divider()
                     }
                     if store.sources.isEmpty && !store.isBootstrapping {
-                        Text("尚未安裝任何漫畫源").foregroundStyle(.secondary)
+                        Text(L("尚未安裝任何漫畫源")).foregroundStyle(.secondary)
                     }
                 }
 
-                Panel(title: "排序") {
+                Panel(title: L("排序")) {
                     NavigationLink { SourceOrderView() } label: {
-                        HStack { Text("調整首頁來源順序"); Spacer(); Image(systemName: "chevron.right").font(.caption) }
+                        HStack { Text(L("調整首頁來源順序")); Spacer(); Image(systemName: "chevron.right").font(.caption) }
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                 }
 
-                Panel(title: "更新") {
-                    Toggle("啟動時自動更新漫畫源", isOn: $settings.autoUpdateSources)
-                    TextField("索引網址 (index.json)", text: $settings.sourceListURL)
+                Panel(title: L("更新")) {
+                    Toggle(L("啟動時自動更新漫畫源"), isOn: $settings.autoUpdateSources)
+                    TextField(L("索引網址 (index.json)"), text: $settings.sourceListURL)
                         .textInputAutocapitalization(.never).autocorrectionDisabled().textFieldStyle(.roundedBorder)
-                    GlassButton(title: store.isUpdating ? "更新中…" : "立即檢查並更新", systemImage: "arrow.triangle.2.circlepath") {
+                    GlassButton(title: store.isUpdating ? L("更新中…") : L("立即檢查並更新"), systemImage: "arrow.triangle.2.circlepath") {
                         Task {
                             let count = await store.checkUpdates(install: true)
-                            ToastCenter.shared.show(count > 0 ? "已更新 \(count) 個漫畫源" : "漫畫源都是最新版")
+                            ToastCenter.shared.show(count > 0 ? L("已更新 %@ 個漫畫源", "\(count)") : L("漫畫源都是最新版"))
                         }
                     }
                     .disabled(store.isUpdating)
                 }
 
                 Panel(title: nil) {
-                    GlassButton(title: "新增或更新漫畫源", systemImage: "plus.circle.fill", prominent: true) { showAdd = true }
-                    GlassButton(title: restoring ? "處理中…" : "重新安裝內建漫畫源", systemImage: "arrow.counterclockwise") {
+                    GlassButton(title: L("新增或更新漫畫源"), systemImage: "plus.circle.fill", prominent: true) { showAdd = true }
+                    GlassButton(title: restoring ? L("處理中…") : L("重新安裝內建漫畫源"), systemImage: "arrow.counterclockwise") {
                         restoring = true
                         Task { await store.restoreBundled(); await store.bootstrap(); restoring = false }
                     }
-                    GlassButton(title: "執行記錄", systemImage: "doc.text.magnifyingglass") { showLog = true }
-                    Text("漫畫源是 venera 格式的 JavaScript 腳本，內建版本在編譯時打包。只安裝你信任的腳本。")
+                    GlassButton(title: L("執行記錄"), systemImage: "doc.text.magnifyingglass") { showLog = true }
+                    Text(L("漫畫源是 venera 格式的 JavaScript 腳本，內建版本在編譯時打包。只安裝你信任的腳本。"))
                         .font(.footnote).foregroundStyle(.secondary)
                 }
             }
             .padding(16)
         }
         .themedScreen()
-        .navigationTitle("來源管理")
+        .navigationTitle(L("來源管理"))
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showAdd) { NavigationStack { VeneraAddSourceView() } }
         .sheet(isPresented: $showLog) { NavigationStack { VeneraLogView() } }
@@ -115,19 +115,19 @@ struct VeneraLogView: View {
 
     var body: some View {
         ScrollView {
-            Text(lines.isEmpty ? "沒有記錄" : lines.joined(separator: "\n"))
+            Text(lines.isEmpty ? L("沒有記錄") : lines.joined(separator: "\n"))
                 .font(.system(.caption, design: .monospaced))
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
                 .textSelection(.enabled)
         }
         .themedScreen()
-        .navigationTitle("執行記錄")
+        .navigationTitle(L("執行記錄"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) { Button("關閉") { dismiss() } }
+            ToolbarItem(placement: .topBarLeading) { Button(L("關閉")) { dismiss() } }
             ToolbarItem(placement: .topBarTrailing) {
-                Button("清除") { VeneraLog.shared.clear(); lines = [] }
+                Button(L("清除")) { VeneraLog.shared.clear(); lines = [] }
             }
         }
     }
@@ -150,25 +150,25 @@ struct VeneraAddSourceView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                Panel(title: "從索引安裝") {
-                    TextField("索引網址 (index.json)", text: $indexURL)
+                Panel(title: L("從索引安裝")) {
+                    TextField(L("索引網址 (index.json)"), text: $indexURL)
                         .textInputAutocapitalization(.never).autocorrectionDisabled()
                         .textFieldStyle(.roundedBorder)
-                    GlassButton(title: loading ? "載入中…" : "載入清單", systemImage: "arrow.down.doc") { loadIndex() }
+                    GlassButton(title: loading ? L("載入中…") : L("載入清單"), systemImage: "arrow.down.doc") { loadIndex() }
                         .disabled(loading)
                     ForEach(entries) { entry in
                         let installed = store.isInstalled(entry.key)
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(entry.name).font(.subheadline.weight(.semibold))
-                                Text("v\(entry.version)" + (installed.map { " · 已安裝 v\($0.version)" } ?? ""))
+                                Text("v\(entry.version)" + (installed.map { L(" · 已安裝 v%@", "\($0.version)") } ?? ""))
                                     .font(.caption).foregroundStyle(.secondary)
                             }
                             Spacer()
                             if busyKey == entry.id {
                                 ProgressView()
                             } else if installed == nil || isNewerVersion(entry.version, than: installed?.version ?? "0") {
-                                Button(installed == nil ? "安裝" : "更新") { install(entry) }
+                                Button(installed == nil ? L("安裝") : L("更新")) { install(entry) }
                                     .buttonStyle(.borderedProminent)
                             } else {
                                 Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
@@ -178,13 +178,13 @@ struct VeneraAddSourceView: View {
                     }
                 }
 
-                Panel(title: "從網址或檔案安裝") {
-                    TextField("腳本網址 (.js)", text: $scriptURL)
+                Panel(title: L("從網址或檔案安裝")) {
+                    TextField(L("腳本網址 (.js)"), text: $scriptURL)
                         .textInputAutocapitalization(.never).autocorrectionDisabled()
                         .textFieldStyle(.roundedBorder)
-                    GlassButton(title: "安裝", systemImage: "square.and.arrow.down") { installScriptURL() }
+                    GlassButton(title: L("安裝"), systemImage: "square.and.arrow.down") { installScriptURL() }
                         .disabled(scriptURL.isEmpty)
-                    GlassButton(title: "從檔案匯入", systemImage: "folder") { importing = true }
+                    GlassButton(title: L("從檔案匯入"), systemImage: "folder") { importing = true }
                 }
 
                 if let message {
@@ -194,17 +194,17 @@ struct VeneraAddSourceView: View {
             .padding(16)
         }
         .themedScreen()
-        .navigationTitle("新增漫畫源")
+        .navigationTitle(L("新增漫畫源"))
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar { ToolbarItem(placement: .topBarLeading) { Button("完成") { dismiss() } } }
+        .toolbar { ToolbarItem(placement: .topBarLeading) { Button(L("完成")) { dismiss() } } }
         .onAppear { if indexURL.isEmpty { indexURL = store.defaultIndexURL } }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.javaScript, .plainText, .text]) { result in
             guard case .success(let url) = result else { return }
             let scoped = url.startAccessingSecurityScopedResource()
             defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-            guard let js = try? String(contentsOf: url, encoding: .utf8) else { message = "無法讀取檔案"; return }
+            guard let js = try? String(contentsOf: url, encoding: .utf8) else { message = L("無法讀取檔案"); return }
             Task {
-                do { let info = try await store.install(js: js); message = "已安裝 \(info.name)" }
+                do { let info = try await store.install(js: js); message = L("已安裝 %@", "\(info.name)") }
                 catch { message = error.localizedDescription }
             }
         }
@@ -215,7 +215,7 @@ struct VeneraAddSourceView: View {
         message = nil
         Task {
             do { entries = try await store.fetchIndex(indexURL) }
-            catch { message = "載入失敗：\(error.localizedDescription)" }
+            catch { message = L("載入失敗：%@", "\(error.localizedDescription)") }
             loading = false
         }
     }
@@ -223,17 +223,17 @@ struct VeneraAddSourceView: View {
     private func install(_ entry: VeneraIndexEntry) {
         busyKey = entry.id
         Task {
-            do { try await store.install(entry: entry, indexURL: indexURL); message = "已安裝 \(entry.name)" }
-            catch { message = "安裝失敗：\(error.localizedDescription)" }
+            do { try await store.install(entry: entry, indexURL: indexURL); message = L("已安裝 %@", "\(entry.name)") }
+            catch { message = L("安裝失敗：%@", "\(error.localizedDescription)") }
             busyKey = nil
         }
     }
 
     private func installScriptURL() {
-        guard let url = URL(string: scriptURL.trimmingCharacters(in: .whitespacesAndNewlines)) else { message = "網址無效"; return }
+        guard let url = URL(string: scriptURL.trimmingCharacters(in: .whitespacesAndNewlines)) else { message = L("網址無效"); return }
         Task {
-            do { try await store.install(from: url); message = "安裝完成" }
-            catch { message = "安裝失敗：\(error.localizedDescription)" }
+            do { try await store.install(from: url); message = L("安裝完成") }
+            catch { message = L("安裝失敗：%@", "\(error.localizedDescription)") }
         }
     }
 }
@@ -265,10 +265,10 @@ struct VeneraSourceDetailView: View {
                         Text("v\(info.version)  ·  \(info.key)").font(.caption).foregroundStyle(.secondary)
                         if !info.url.isEmpty { Text(info.url).font(.caption2).foregroundStyle(.secondary).lineLimit(2) }
                         HStack(spacing: 8) {
-                            if !info.explore.isEmpty { badge("探索") }
-                            if info.search != nil { badge("搜尋") }
-                            if info.category != nil { badge("分類") }
-                            if info.favorites != nil { badge("收藏") }
+                            if !info.explore.isEmpty { badge(L("探索")) }
+                            if info.search != nil { badge(L("搜尋")) }
+                            if info.category != nil { badge(L("分類")) }
+                            if info.favorites != nil { badge(L("收藏")) }
                         }
                     }
 
@@ -277,13 +277,13 @@ struct VeneraSourceDetailView: View {
                     if let accountInfo = info.account { accountPanel(info, accountInfo) }
 
                     if !info.settings.isEmpty {
-                        Panel(title: "設定") {
+                        Panel(title: L("設定")) {
                             ForEach(info.settings) { setting in VeneraSettingRow(sourceKey: key, setting: setting) }
                         }
                     }
 
                     Panel(title: nil) {
-                        Button("移除這個漫畫源", role: .destructive) { confirmRemove = true }
+                        Button(L("移除這個漫畫源"), role: .destructive) { confirmRemove = true }
                     }
                 }
                 .padding(16)
@@ -296,8 +296,8 @@ struct VeneraSourceDetailView: View {
             logged = VeneraStorage.shared.isLogged(key)
             cookieValues = Array(repeating: "", count: info?.account?.cookieFields?.count ?? 0)
         }
-        .confirmationDialog("確定要移除？設定與登入資料也會一併刪除。", isPresented: $confirmRemove, titleVisibility: .visible) {
-            Button("移除", role: .destructive) { store.remove(key: key); dismiss() }
+        .confirmationDialog(L("確定要移除？設定與登入資料也會一併刪除。"), isPresented: $confirmRemove, titleVisibility: .visible) {
+            Button(L("移除"), role: .destructive) { store.remove(key: key); dismiss() }
         }
         .sheet(isPresented: $showWeb) {
             if let info, let urlString = info.account?.webviewUrl, let url = URL(string: urlString) {
@@ -311,10 +311,10 @@ struct VeneraSourceDetailView: View {
     private func pagesPanel(_ info: VeneraInfo) -> some View {
         let parts = info.category?.parts.map(\.name).filter { !$0.isEmpty } ?? []
         if !info.explore.isEmpty || !parts.isEmpty || info.ranking != nil {
-            Panel(title: "顯示的頁面") {
-                ForEach(info.explore.map(\.title), id: \.self) { title in pageToggle("探索：\(title)", item: "explore:\(title)") }
-                ForEach(parts, id: \.self) { name in pageToggle("分類：\(name)", item: "cat:\(name)") }
-                if info.ranking != nil { pageToggle("排行", item: "rank") }
+            Panel(title: L("顯示的頁面")) {
+                ForEach(info.explore.map(\.title), id: \.self) { title in pageToggle(L("探索：%@", "\(title)"), item: "explore:\(title)") }
+                ForEach(parts, id: \.self) { name in pageToggle(L("分類：%@", "\(name)"), item: "cat:\(name)") }
+                if info.ranking != nil { pageToggle(L("排行"), item: "rank") }
             }
         }
     }
@@ -332,23 +332,23 @@ struct VeneraSourceDetailView: View {
 
     @ViewBuilder
     private func accountPanel(_ info: VeneraInfo, _ accountInfo: VeneraInfo.Account) -> some View {
-        Panel(title: "帳號") {
+        Panel(title: L("帳號")) {
             if logged {
                 HStack {
-                    Label("已登入", systemImage: "checkmark.seal.fill")
+                    Label(L("已登入"), systemImage: "checkmark.seal.fill")
                     Spacer()
-                    Button("登出", role: .destructive) { logout() }
+                    Button(L("登出"), role: .destructive) { logout() }
                 }
             } else {
                 if accountInfo.hasLogin {
-                    TextField("帳號", text: $account)
+                    TextField(L("帳號"), text: $account)
                         .textInputAutocapitalization(.never).autocorrectionDisabled().textFieldStyle(.roundedBorder)
-                    SecureField("密碼", text: $password).textFieldStyle(.roundedBorder)
-                    GlassButton(title: busy ? "登入中…" : "登入", systemImage: "arrow.right.circle.fill", prominent: true) { login() }
+                    SecureField(L("密碼"), text: $password).textFieldStyle(.roundedBorder)
+                    GlassButton(title: busy ? L("登入中…") : L("登入"), systemImage: "arrow.right.circle.fill", prominent: true) { login() }
                         .disabled(busy || account.isEmpty || password.isEmpty)
                 }
                 if accountInfo.webviewUrl != nil {
-                    GlassButton(title: "用網頁登入", systemImage: "globe") { showWeb = true }
+                    GlassButton(title: L("用網頁登入"), systemImage: "globe") { showWeb = true }
                 }
                 if let fields = accountInfo.cookieFields, !fields.isEmpty, !accountInfo.hasLogin {
                     ForEach(Array(fields.enumerated()), id: \.offset) { index, field in
@@ -357,11 +357,11 @@ struct VeneraSourceDetailView: View {
                             set: { if cookieValues.indices.contains(index) { cookieValues[index] = $0 } }))
                             .textInputAutocapitalization(.never).autocorrectionDisabled().textFieldStyle(.roundedBorder)
                     }
-                    GlassButton(title: "驗證 Cookie", systemImage: "checkmark.shield") { cookieLogin() }
+                    GlassButton(title: L("驗證 Cookie"), systemImage: "checkmark.shield") { cookieLogin() }
                         .disabled(busy)
                 }
                 if let register = accountInfo.registerWebsite, let url = URL(string: register) {
-                    Link("註冊帳號", destination: url).font(.footnote)
+                    Link(L("註冊帳號"), destination: url).font(.footnote)
                 }
             }
             if let message { Text(message).font(.footnote).foregroundStyle(.secondary) }
@@ -390,7 +390,7 @@ struct VeneraSourceDetailView: View {
             do {
                 let ok = try await VeneraRuntime.shared.callValue(key, "__cookieLogin", [values]) as? Bool ?? false
                 if ok { VeneraStorage.shared.setData(key, "account", jsLiteral(values)); logged = true }
-                else { message = "Cookie 驗證失敗" }
+                else { message = L("Cookie 驗證失敗") }
             } catch { message = error.localizedDescription }
             busy = false
         }
@@ -511,9 +511,9 @@ struct VeneraWebLoginSheet: View {
                     dismiss()
                 }
             }
-            .navigationTitle("登入")
+            .navigationTitle(L("登入"))
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .topBarLeading) { Button("取消") { dismiss() } } }
+            .toolbar { ToolbarItem(placement: .topBarLeading) { Button(L("取消")) { dismiss() } } }
         }
     }
 

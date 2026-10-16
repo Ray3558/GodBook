@@ -9,7 +9,7 @@ struct CommentsSheet: View {
     var body: some View {
         NavigationStack {
             CommentThreadView(kind: kind, context: context, parent: nil)
-                .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("關閉") { dismiss() } } }
+                .toolbar { ToolbarItem(placement: .topBarTrailing) { Button(L("關閉")) { dismiss() } } }
         }
         .presentationDetents([.large])
     }
@@ -49,18 +49,18 @@ struct CommentThreadView: View {
                         CommentRow(kind: kind, context: context, comment: comment, isRoot: false)
                     }
                     if didLoad && comments.isEmpty && errorMessage == nil {
-                        Text("還沒有評論").foregroundStyle(.secondary).frame(maxWidth: .infinity).padding(40)
+                        Text(L("還沒有評論")).foregroundStyle(.secondary).frame(maxWidth: .infinity).padding(40)
                     }
                     if let errorMessage {
                         VStack(spacing: 8) {
                             Text(errorMessage).font(.footnote).multilineTextAlignment(.center)
-                            GlassButton(title: "重試", systemImage: "arrow.clockwise") { Task { await load(reset: false) } }
+                            GlassButton(title: L("重試"), systemImage: "arrow.clockwise") { Task { await load(reset: false) } }
                                 .frame(maxWidth: 200)
                         }
                         .frame(maxWidth: .infinity).padding()
                     }
                     if hasMore && !loading {
-                        Button("載入更多") { Task { await load(reset: false) } }
+                        Button(L("載入更多")) { Task { await load(reset: false) } }
                             .frame(maxWidth: .infinity).padding(.vertical, 8)
                     } else if loading && didLoad {
                         ProgressView().frame(maxWidth: .infinity).padding()
@@ -71,7 +71,7 @@ struct CommentThreadView: View {
             if canSend { composer }
         }
         .themedScreen()
-        .navigationTitle(parent == nil ? (context.chapterId == nil ? "評論" : "章節評論") : "回覆")
+        .navigationTitle(parent == nil ? (context.chapterId == nil ? L("評論") : L("章節評論")) : L("回覆"))
         .navigationBarTitleDisplayMode(.inline)
         .overlay(alignment: .top) {
             if let notice {
@@ -90,7 +90,7 @@ struct CommentThreadView: View {
 
     private var composer: some View {
         HStack(spacing: 10) {
-            TextField(parent == nil ? "寫下評論…" : "回覆 \(parent?.userName ?? "")…", text: $draft, axis: .vertical)
+            TextField(parent == nil ? L("寫下評論…") : L("回覆 %@…", "\(parent?.userName ?? "")"), text: $draft, axis: .vertical)
                 .lineLimit(1...4)
                 .padding(.horizontal, 14).padding(.vertical, 10)
                 .glassCard(cornerRadius: 20)
@@ -140,10 +140,10 @@ struct CommentThreadView: View {
         do {
             try await source.sendComment(context, content: text, replyTo: parent?.id)
             draft = ""
-            show("已送出")
+            show(L("已送出"))
             await load(reset: true)
         } catch {
-            show("發送失敗：\(error.localizedDescription)")
+            show(L("發送失敗：%@", "\(error.localizedDescription)"))
         }
     }
 
@@ -201,18 +201,18 @@ struct CommentRow: View {
                 NavigationLink {
                     CommentThreadView(kind: kind, context: context, parent: comment)
                 } label: {
-                    Label("\(comment.replyCount ?? comment.replies.count) 則回覆", systemImage: "bubble.left.and.bubble.right").font(.caption)
+                    Label(L("%@ 則回覆", "\(comment.replyCount ?? comment.replies.count)"), systemImage: "bubble.left.and.bubble.right").font(.caption)
                 }
             } else if !isRoot, source.capabilities.sendComments, !comment.id.isEmpty {
                 NavigationLink {
                     CommentThreadView(kind: kind, context: context, parent: comment)
                 } label: {
-                    Label("回覆", systemImage: "arrowshape.turn.up.left").font(.caption)
+                    Label(L("回覆"), systemImage: "arrowshape.turn.up.left").font(.caption)
                 }
             }
             if source.capabilities.likeComment, !comment.id.isEmpty {
                 Button { Task { await toggleLike() } } label: {
-                    Label(comment.score.map(String.init) ?? "讚", systemImage: comment.isLiked == true ? "heart.fill" : "heart").font(.caption)
+                    Label(comment.score.map(String.init) ?? L("讚"), systemImage: comment.isLiked == true ? "heart.fill" : "heart").font(.caption)
                 }
             }
             if source.capabilities.voteComment, !comment.id.isEmpty {

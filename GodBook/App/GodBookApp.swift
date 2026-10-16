@@ -4,7 +4,7 @@ import SwiftUI
 struct GodBookApp: App {
     @StateObject private var theme = ThemeStore()
     @StateObject private var library = LibraryStore()
-    private let settings = AppSettings.shared
+    @ObservedObject private var settings = AppSettings.shared
     private let downloads = DownloadManager.shared
     private let venera = VeneraStore.shared
     private let readerPrefs = ReaderPrefsStore.shared
@@ -18,6 +18,8 @@ struct GodBookApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
+                .id(settings.language)
+                .environment(\.locale, Language.locale)
                 .environmentObject(theme)
                 .environmentObject(library)
                 .environmentObject(settings)

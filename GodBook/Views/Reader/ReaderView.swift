@@ -46,7 +46,7 @@ struct ReaderView: View {
             } else if let errorMessage {
                 VStack(spacing: 12) {
                     Text(errorMessage).foregroundStyle(.white).multilineTextAlignment(.center)
-                    GlassButton(title: "重試", systemImage: "arrow.clockwise") { Task { await load() } }
+                    GlassButton(title: L("重試"), systemImage: "arrow.clockwise") { Task { await load() } }
                         .frame(maxWidth: 200)
                 }
                 .padding()
@@ -130,9 +130,9 @@ struct ReaderView: View {
     private func turn(_ delta: Int) {
         let target = current + delta
         if target < 0 {
-            if chapterIndex > 0 { step(-1) } else { show("已經是第一頁") }
+            if chapterIndex > 0 { step(-1) } else { show(L("已經是第一頁")) }
         } else if target >= pages.count {
-            if chapterIndex < detail.chapters.count - 1 { step(1) } else { show("已經是最後一頁") }
+            if chapterIndex < detail.chapters.count - 1 { step(1) } else { show(L("已經是最後一頁")) }
         } else {
             current = target
         }
@@ -183,13 +183,13 @@ struct ReaderView: View {
 
             Menu {
                 Button { collect(current) } label: {
-                    Label(isCollected(current) ? "取消收藏這張圖" : "收藏這張圖", systemImage: isCollected(current) ? "heart.slash" : "heart")
+                    Label(isCollected(current) ? L("取消收藏這張圖") : L("收藏這張圖"), systemImage: isCollected(current) ? "heart.slash" : "heart")
                 }
                 if SourceRegistry.source(detail.summary.source).capabilities.chapterComments {
-                    Button { showChapterComments = true } label: { Label("章節評論", systemImage: "text.bubble") }
+                    Button { showChapterComments = true } label: { Label(L("章節評論"), systemImage: "text.bubble") }
                 }
-                Button { Task { await saveToPhotos() } } label: { Label("儲存到相簿", systemImage: "square.and.arrow.down") }
-                Button { Task { await share() } } label: { Label("分享這張圖", systemImage: "square.and.arrow.up") }
+                Button { Task { await saveToPhotos() } } label: { Label(L("儲存到相簿"), systemImage: "square.and.arrow.down") }
+                Button { Task { await share() } } label: { Label(L("分享這張圖"), systemImage: "square.and.arrow.up") }
             } label: {
                 circleLabel("ellipsis")
             }
@@ -302,20 +302,20 @@ struct ReaderView: View {
 
     private func collect(_ index: Int) {
         Task {
-            guard let image = await image(at: index) else { show("圖片尚未載入完成"); return }
+            guard let image = await image(at: index) else { show(L("圖片尚未載入完成")); return }
             let added = imageFavorites.toggle(summary: detail.summary, chapter: chapter, pageIndex: index, image: image)
-            show(added ? "已收藏這張圖" : "已取消收藏")
+            show(added ? L("已收藏這張圖") : L("已取消收藏"))
         }
     }
 
     private func saveToPhotos() async {
-        guard let image = await image(at: current) else { show("圖片尚未載入完成"); return }
+        guard let image = await image(at: current) else { show(L("圖片尚未載入完成")); return }
         UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
-        show("已儲存到相簿")
+        show(L("已儲存到相簿"))
     }
 
     private func share() async {
-        guard let image = await image(at: current) else { show("圖片尚未載入完成"); return }
+        guard let image = await image(at: current) else { show(L("圖片尚未載入完成")); return }
         shareImage = ShareImageItem(image: image)
     }
 

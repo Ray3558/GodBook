@@ -6,38 +6,38 @@ struct ReaderPrefsForm: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            GlassPanel(title: "閱讀方式") {
-                Picker("模式", selection: $prefs.mode) {
+            GlassPanel(title: L("閱讀方式")) {
+                Picker(L("模式"), selection: $prefs.mode) {
                     ForEach(ReaderMode.allCases) { Text($0.title).tag($0) }
                 }
                 .pickerStyle(.menu)
-                Toggle("翻頁動畫", isOn: $prefs.pageAnimation)
+                Toggle(L("翻頁動畫"), isOn: $prefs.pageAnimation)
             }
 
-            GlassPanel(title: "操作") {
-                Toggle("點擊畫面兩側翻頁", isOn: $prefs.tapToTurn)
+            GlassPanel(title: L("操作")) {
+                Toggle(L("點擊畫面兩側翻頁"), isOn: $prefs.tapToTurn)
                 if prefs.tapToTurn {
-                    Toggle("反向點擊（左右對調）", isOn: $prefs.reverseTap)
+                    Toggle(L("反向點擊（左右對調）"), isOn: $prefs.reverseTap)
                 }
-                Toggle("雙擊縮放", isOn: $prefs.doubleTapZoom)
+                Toggle(L("雙擊縮放"), isOn: $prefs.doubleTapZoom)
                     .disabled(prefs.quickCollect)
-                Toggle("長按放大（放開還原）", isOn: $prefs.longPressZoom)
-                Toggle("雙擊收藏圖片", isOn: $prefs.quickCollect)
-                Toggle("音量鍵翻頁", isOn: $prefs.volumeKeys)
-                Text("連續由上到下的模式（條漫）點擊只會顯示或隱藏工具列。音量鍵翻頁時，音量上 = 上一頁、音量下 = 下一頁。")
+                Toggle(L("長按放大（放開還原）"), isOn: $prefs.longPressZoom)
+                Toggle(L("雙擊收藏圖片"), isOn: $prefs.quickCollect)
+                Toggle(L("音量鍵翻頁"), isOn: $prefs.volumeKeys)
+                Text(L("連續由上到下的模式（條漫）點擊只會顯示或隱藏工具列。音量鍵翻頁時，音量上 = 上一頁、音量下 = 下一頁。"))
                     .font(.footnote).foregroundStyle(.secondary)
             }
 
-            GlassPanel(title: "自動與預載") {
-                Stepper(prefs.autoTurnSeconds == 0 ? "自動翻頁：關閉" : "自動翻頁：每 \(prefs.autoTurnSeconds) 秒",
+            GlassPanel(title: L("自動與預載")) {
+                Stepper(prefs.autoTurnSeconds == 0 ? L("自動翻頁：關閉") : L("自動翻頁：每 %@ 秒", "\(prefs.autoTurnSeconds)"),
                         value: $prefs.autoTurnSeconds, in: 0...60)
-                Stepper("預載後面 \(prefs.preloadCount) 張", value: $prefs.preloadCount, in: 0...10)
+                Stepper(L("預載後面 %@ 張", "\(prefs.preloadCount)"), value: $prefs.preloadCount, in: 0...10)
             }
 
-            GlassPanel(title: "畫面") {
-                Toggle("顯示頁碼", isOn: $prefs.showPageNumber)
-                Toggle("顯示時間與電量", isOn: $prefs.showClockBattery)
-                Toggle("閱讀時保持螢幕不熄滅", isOn: $prefs.keepScreenOn)
+            GlassPanel(title: L("畫面")) {
+                Toggle(L("顯示頁碼"), isOn: $prefs.showPageNumber)
+                Toggle(L("顯示時間與電量"), isOn: $prefs.showClockBattery)
+                Toggle(L("閱讀時保持螢幕不熄滅"), isOn: $prefs.keepScreenOn)
             }
         }
     }
@@ -51,7 +51,7 @@ struct ReaderSettingsPage: View {
             ReaderPrefsForm(prefs: $store.global).padding(16)
         }
         .themedScreen()
-        .navigationTitle("閱讀設定")
+        .navigationTitle(L("閱讀設定"))
         .navigationBarTitleDisplayMode(.inline)
     }
 }
@@ -67,10 +67,10 @@ struct ReaderSettingsSheet: View {
             ScrollView {
                 VStack(spacing: 16) {
                     GlassPanel(title: nil) {
-                        Toggle("這部漫畫使用獨立設定", isOn: Binding(
+                        Toggle(L("這部漫畫使用獨立設定"), isOn: Binding(
                             get: { store.hasOverride(comicKey) },
                             set: { on in store.setOverride(comicKey, on ? store.global : nil) }))
-                        Text("開啟後，下面的調整只影響這部漫畫，不會改到全域設定。")
+                        Text(L("開啟後，下面的調整只影響這部漫畫，不會改到全域設定。"))
                             .font(.footnote).foregroundStyle(.secondary)
                     }
                     ReaderPrefsForm(prefs: Binding(
@@ -80,9 +80,9 @@ struct ReaderSettingsSheet: View {
                 .padding(16)
             }
             .themedScreen()
-            .navigationTitle("閱讀設定")
+            .navigationTitle(L("閱讀設定"))
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("完成") { dismiss() } } }
+            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button(L("完成")) { dismiss() } } }
         }
         .preferredColorScheme(.dark)
     }
@@ -110,9 +110,9 @@ struct ReaderChapterSheet: View {
                     }
                 }
             }
-            .navigationTitle("章節")
+            .navigationTitle(L("章節"))
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("關閉") { dismiss() } } }
+            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button(L("關閉")) { dismiss() } } }
         }
         .preferredColorScheme(.dark)
     }

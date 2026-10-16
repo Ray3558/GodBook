@@ -41,6 +41,7 @@ final class AppSettings: ObservableObject {
     @Stored("list.showStatus", true) var showTileStatus: Bool
     @Stored("list.blocked", [String]()) var blockedWords: [String]
     @Stored("list.blockedComments", [String]()) var blockedCommentWords: [String]
+    @Stored("ui.language", "system") var language: String                  // system | zh-Hant | zh-Hans | en
     @Stored("ui.initialTab", 0) var initialTab: Int                       // 0 探索、1 書庫、2 設定
     @Stored("ui.reverseChapters", false) var reverseChapters: Bool
     @Stored("search.defaultTarget", "current") var defaultSearchTarget: String // current | aggregated

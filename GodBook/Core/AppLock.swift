@@ -28,7 +28,7 @@ final class AppLock: ObservableObject {
             return
         }
         do {
-            try await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "解鎖 GodBook")
+            try await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: L("解鎖 GodBook"))
             locked = false
             failed = false
         } catch {
@@ -45,11 +45,11 @@ struct LockOverlay: View {
             Rectangle().fill(.ultraThickMaterial).ignoresSafeArea()
             VStack(spacing: 16) {
                 Image(systemName: "lock.fill").font(.system(size: 44))
-                Text("GodBook 已鎖定").font(.headline)
+                Text(L("GodBook 已鎖定")).font(.headline)
                 Button {
                     Task { await lock.unlock() }
                 } label: {
-                    Label("解鎖", systemImage: "faceid").padding(.horizontal, 24).padding(.vertical, 12)
+                    Label(L("解鎖"), systemImage: "faceid").padding(.horizontal, 24).padding(.vertical, 12)
                 }
                 .buttonStyle(.borderedProminent)
             }

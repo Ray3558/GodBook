@@ -93,7 +93,7 @@ struct VeneraSource: ComicSource {
         }
         let favorited = Set((r["favorited"] as? [String]) ?? [])
         let canManage = info?.favorites?.canAddFolder == true && info?.favorites?.multiFolder == true
-        return RemoteFavoriteState(folders: folders.isEmpty ? [RemoteFolder(id: "0", name: "收藏")] : folders,
+        return RemoteFavoriteState(folders: folders.isEmpty ? [RemoteFolder(id: "0", name: L("收藏"))] : folders,
                                    favorited: favorited, canManageFolders: canManage)
     }
 
@@ -115,7 +115,7 @@ struct VeneraSource: ComicSource {
         guard let info else { return [SortOption(id: "none", title: "—")] }
         var options: [SortOption] = []
         for (index, page) in info.explore.enumerated() where !hidden.contains("explore:\(page.title)") {
-            options.append(SortOption(id: "explore:\(index)", title: page.title, section: "探索"))
+            options.append(SortOption(id: "explore:\(index)", title: page.title, section: L("探索")))
         }
         return options.isEmpty ? [SortOption(id: "none", title: "—")] : options
     }
@@ -136,7 +136,7 @@ struct VeneraSource: ComicSource {
             let entries = ranking.options.compactMap { pair -> CategoryEntry? in
                 pair.count == 2 ? CategoryEntry(title: pair[1], query: VeneraQuery.rank(pair[0])) : nil
             }
-            if !entries.isEmpty { sections.append(CategorySection(title: "排行", entries: entries)) }
+            if !entries.isEmpty { sections.append(CategorySection(title: L("排行"), entries: entries)) }
         }
         return sections
     }
@@ -166,7 +166,7 @@ struct VeneraSource: ComicSource {
             }
             guard !choices.isEmpty else { return nil }
             let kind: FilterGroup.Kind = option.type == "multi-select" ? .multi : (option.type == "dropdown" ? .dropdown : .select)
-            return FilterGroup(id: "\(prefix)\(index)", title: option.label.isEmpty ? "選項 \(index + 1)" : option.label,
+            return FilterGroup(id: "\(prefix)\(index)", title: option.label.isEmpty ? L("選項 %@", "\(index + 1)") : option.label,
                                kind: kind, options: choices, defaultValue: option.def)
         }
     }
@@ -181,7 +181,7 @@ struct VeneraSource: ComicSource {
     }
 
     func browse(query: String, page: Int, sort: SortOption, filters: [String: String]) async throws -> ComicPageResult {
-        guard let info else { throw AppError.message("漫畫源尚未載入") }
+        guard let info else { throw AppError.message(L("漫畫源尚未載入")) }
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
 
         if let (category, param) = VeneraQuery.decodeCategory(trimmed) {
@@ -195,7 +195,7 @@ struct VeneraSource: ComicSource {
         }
 
         if !trimmed.isEmpty {
-            guard let search = info.search else { throw AppError.message("這個漫畫源不支援搜尋") }
+            guard let search = info.search else { throw AppError.message(L("這個漫畫源不支援搜尋")) }
             var keyword = trimmed
             // 與 venera 相同：只對 nhentai / ehentai 自動加語言條件
             let language = filters["lang"] ?? AppSettings.shared.autoLanguage
@@ -217,7 +217,7 @@ struct VeneraSource: ComicSource {
             return decodePage(result, page: page)
         case "cat":
             let item = info.category?.parts[safe: Int(parts[safe: 1] ?? "") ?? 0]?.items[safe: Int(parts[safe: 2] ?? "") ?? 0]
-            guard let item else { throw AppError.message("分類不存在") }
+            guard let item else { throw AppError.message(L("分類不存在")) }
             if item.kind == "search" {
                 return try await browse(query: item.text ?? item.label, page: page, sort: SortOption(id: "none", title: ""), filters: filters)
             }
@@ -232,12 +232,12 @@ struct VeneraSource: ComicSource {
                 let result = try await invoke( "__explore", [0, page, tokens.next[page]])
                 return decodePage(result, page: page)
             }
-            throw AppError.message("這個漫畫源沒有可瀏覽的首頁，請使用搜尋")
+            throw AppError.message(L("這個漫畫源沒有可瀏覽的首頁，請使用搜尋"))
         }
     }
 
     func favorites(page: Int) async throws -> ComicPageResult {
-        guard let info, let favorites = info.favorites else { throw AppError.message("這個漫畫源沒有雲端收藏") }
+        guard let info, let favorites = info.favorites else { throw AppError.message(L("這個漫畫源沒有雲端收藏")) }
         var folder: String?
         if favorites.multiFolder {
             if tokens.folder == nil {
@@ -287,7 +287,7 @@ struct VeneraSource: ComicSource {
             if let group = item["group"] as? String, !group.isEmpty { return Chapter(id: id, title: "\(group) · \(title)") }
             return Chapter(id: id, title: title)
         }
-        if chapters.isEmpty { chapters = [Chapter(id: VeneraQuery.noChapter, title: "開始閱讀")] }
+        if chapters.isEmpty { chapters = [Chapter(id: VeneraQuery.noChapter, title: L("開始閱讀"))] }
 
         var stats: [String] = []
         if let likes = r["likesCount"] as? Int { stats.append("♥ \(likes)") }
@@ -314,7 +314,7 @@ struct VeneraSource: ComicSource {
         let epId: String? = chapter.id == VeneraQuery.noChapter ? nil : chapter.id
         let result = try await invoke( "__loadEp", [detail.summary.sid, epId])
         let images = (result["images"] as? [String]) ?? []
-        guard !images.isEmpty else { throw AppError.message("這個章節沒有圖片") }
+        guard !images.isEmpty else { throw AppError.message(L("這個章節沒有圖片")) }
         return images.enumerated().map { index, string in
             let spec = ImageSpec(url: VeneraURL.make(string) ?? VeneraURL.placeholder, source: kind,
                                  imageKey: string, comicId: detail.summary.sid, epId: epId ?? "")

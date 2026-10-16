@@ -38,7 +38,7 @@ final class ZipReader {
     }
 
     private static func parseEntries(_ data: Data) throws -> [ZipEntry] {
-        guard data.count >= 22 else { throw AppError.message("不是有效的 ZIP 檔案") }
+        guard data.count >= 22 else { throw AppError.message(L("不是有效的 ZIP 檔案")) }
         // 從檔尾往前找 End Of Central Directory
         var eocd = -1
         var position = data.count - 22
@@ -47,10 +47,10 @@ final class ZipReader {
             if u32(data, position) == 0x06054B50 { eocd = position; break }
             position -= 1
         }
-        guard eocd >= 0 else { throw AppError.message("不是有效的 ZIP 檔案") }
+        guard eocd >= 0 else { throw AppError.message(L("不是有效的 ZIP 檔案")) }
         let total = u16(data, eocd + 10)
         let directoryOffset = u32(data, eocd + 16)
-        if directoryOffset == 0xFFFF_FFFF || total == 0xFFFF { throw AppError.message("不支援 ZIP64 格式") }
+        if directoryOffset == 0xFFFF_FFFF || total == 0xFFFF { throw AppError.message(L("不支援 ZIP64 格式")) }
 
         var result: [ZipEntry] = []
         var cursor = directoryOffset
@@ -76,14 +76,14 @@ final class ZipReader {
     }
 
     func extract(_ entry: ZipEntry) throws -> Data {
-        if entry.encrypted { throw AppError.message("不支援加密的 ZIP") }
+        if entry.encrypted { throw AppError.message(L("不支援加密的 ZIP")) }
         let offset = entry.localOffset
-        guard Self.u32(data, offset) == 0x04034B50 else { throw AppError.message("ZIP 資料損毀") }
+        guard Self.u32(data, offset) == 0x04034B50 else { throw AppError.message(L("ZIP 資料損毀")) }
         let nameLength = Self.u16(data, offset + 26)
         let extraLength = Self.u16(data, offset + 28)
         let start = offset + 30 + nameLength + extraLength
         let end = start + entry.compressedSize
-        guard end <= data.count else { throw AppError.message("ZIP 資料損毀") }
+        guard end <= data.count else { throw AppError.message(L("ZIP 資料損毀")) }
         let raw = data.subdata(in: (data.startIndex + start)..<(data.startIndex + end))
 
         switch entry.method {
@@ -100,10 +100,10 @@ final class ZipReader {
                         nil, COMPRESSION_ZLIB)
                 }
             }
-            guard written == entry.uncompressedSize else { throw AppError.message("解壓縮失敗：\(entry.name)") }
+            guard written == entry.uncompressedSize else { throw AppError.message(L("解壓縮失敗：%@", "\(entry.name)")) }
             return output
         default:
-            throw AppError.message("不支援的壓縮方式 (\(entry.method))")
+            throw AppError.message(L("不支援的壓縮方式 (%@)", "\(entry.method)"))
         }
     }
 }

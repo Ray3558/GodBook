@@ -11,47 +11,47 @@ struct NetworkSettingsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                GlassPanel(title: "代理") {
-                    Picker("模式", selection: $settings.proxyMode) {
-                        Text("系統").tag("system")
-                        Text("直連").tag("direct")
-                        Text("手動").tag("manual")
+                GlassPanel(title: L("代理")) {
+                    Picker(L("模式"), selection: $settings.proxyMode) {
+                        Text(L("系統")).tag("system")
+                        Text(L("直連")).tag("direct")
+                        Text(L("手動")).tag("manual")
                     }
                     .pickerStyle(.segmented)
 
                     if settings.proxyMode == "manual" {
-                        Picker("類型", selection: $settings.proxyType) {
+                        Picker(L("類型"), selection: $settings.proxyType) {
                             Text("HTTP").tag("http")
                             Text("SOCKS5").tag("socks5")
                         }
                         .pickerStyle(.segmented)
-                        TextField("主機（例如 127.0.0.1）", text: $settings.proxyHost)
+                        TextField(L("主機（例如 127.0.0.1）"), text: $settings.proxyHost)
                             .textInputAutocapitalization(.never).autocorrectionDisabled()
                             .textFieldStyle(.roundedBorder)
-                        TextField("連接埠（例如 7890）", text: $settings.proxyPort)
+                        TextField(L("連接埠（例如 7890）"), text: $settings.proxyPort)
                             .keyboardType(.numberPad).textFieldStyle(.roundedBorder)
                     }
-                    GlassButton(title: testing ? "測試中…" : "套用並測試連線", systemImage: "network", prominent: true) { apply() }
+                    GlassButton(title: testing ? L("測試中…") : L("套用並測試連線"), systemImage: "network", prominent: true) { apply() }
                         .disabled(testing)
                     if let status { Text(status).font(.footnote).foregroundStyle(.secondary) }
                 }
 
-                GlassPanel(title: "安全") {
-                    Toggle("忽略憑證錯誤", isOn: $settings.ignoreBadCert)
+                GlassPanel(title: L("安全")) {
+                    Toggle(L("忽略憑證錯誤"), isOn: $settings.ignoreBadCert)
                         .onChange(of: settings.ignoreBadCert) { _, _ in HTTP.reload() }
-                    Text("僅在連到自架或使用自簽憑證的伺服器時開啟；開啟後連線可能被中間人攔截。")
+                    Text(L("僅在連到自架或使用自簽憑證的伺服器時開啟；開啟後連線可能被中間人攔截。"))
                         .font(.footnote).foregroundStyle(.secondary)
                 }
 
-                GlassPanel(title: "關於 DNS 覆寫") {
-                    Text("iOS 的網路層不允許只替單一網域指定 IP 而不破壞 TLS（SNI 與憑證驗證），因此無法像桌面版一樣做 DNS 覆寫。若要繞過 DNS 污染，請使用代理，或在 iOS 設定中安裝加密 DNS（DoH / DoT）描述檔。")
+                GlassPanel(title: L("關於 DNS 覆寫")) {
+                    Text(L("iOS 的網路層不允許只替單一網域指定 IP 而不破壞 TLS（SNI 與憑證驗證），因此無法像桌面版一樣做 DNS 覆寫。若要繞過 DNS 污染，請使用代理，或在 iOS 設定中安裝加密 DNS（DoH / DoT）描述檔。"))
                         .font(.footnote).foregroundStyle(.secondary)
                 }
             }
             .padding(16)
         }
         .themedScreen()
-        .navigationTitle("網路")
+        .navigationTitle(L("網路"))
         .navigationBarTitleDisplayMode(.inline)
     }
 
@@ -65,9 +65,9 @@ struct NetworkSettingsView: View {
                 var request = URLRequest(url: URL(string: "https://www.apple.com/library/test/success.html")!)
                 request.timeoutInterval = 10
                 let (_, response) = try await HTTP.data(for: request)
-                status = "連線正常（HTTP \(response.statusCode)，\(Int(Date().timeIntervalSince(start) * 1000)) ms）"
+                status = L("連線正常（HTTP %@，%@ ms）", "\(response.statusCode)", "\(Int(Date().timeIntervalSince(start) * 1000))")
             } catch {
-                status = "連線失敗：\(error.localizedDescription)"
+                status = L("連線失敗：%@", "\(error.localizedDescription)")
             }
             testing = false
         }
@@ -91,17 +91,17 @@ struct CacheDataSettingsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                GlassPanel(title: "圖片快取") {
+                GlassPanel(title: L("圖片快取")) {
                     HStack {
-                        Text("目前大小")
+                        Text(L("目前大小"))
                         Spacer()
                         Text(ByteCountFormatter.string(fromByteCount: cacheSize, countStyle: .file)).foregroundStyle(.secondary)
                     }
-                    Picker("上限", selection: $settings.cacheLimitMB) {
-                        ForEach(limits, id: \.self) { Text($0 == 0 ? "不限制" : "\($0 >= 1024 ? "\($0 / 1024) GB" : "\($0) MB")").tag($0) }
+                    Picker(L("上限"), selection: $settings.cacheLimitMB) {
+                        ForEach(limits, id: \.self) { Text($0 == 0 ? L("不限制") : "\($0 >= 1024 ? "\($0 / 1024) GB" : "\($0) MB")").tag($0) }
                     }
                     .pickerStyle(.menu)
-                    GlassButton(title: "清除快取", systemImage: "trash") {
+                    GlassButton(title: L("清除快取"), systemImage: "trash") {
                         ImageDiskCache.clear()
                         URLCache.shared.removeAllCachedResponses()
                         HTTP.session.configuration.urlCache?.removeAllCachedResponses()
@@ -109,25 +109,25 @@ struct CacheDataSettingsView: View {
                     }
                 }
 
-                GlassPanel(title: "備份與還原") {
-                    GlassButton(title: "匯出全部資料", systemImage: "square.and.arrow.up") { export() }
-                    GlassButton(title: "匯入備份檔", systemImage: "square.and.arrow.down") { importing = true }
-                    Text("包含收藏、歷史、設定、主題、漫畫源與登入狀態；不含已下載的圖片。匯入後請完全關閉並重新開啟 App。")
+                GlassPanel(title: L("備份與還原")) {
+                    GlassButton(title: L("匯出全部資料"), systemImage: "square.and.arrow.up") { export() }
+                    GlassButton(title: L("匯入備份檔"), systemImage: "square.and.arrow.down") { importing = true }
+                    Text(L("包含收藏、歷史、設定、主題、漫畫源與登入狀態；不含已下載的圖片。匯入後請完全關閉並重新開啟 App。"))
                         .font(.footnote).foregroundStyle(.secondary)
                 }
 
-                GlassPanel(title: "WebDAV 同步") {
-                    TextField("WebDAV 網址（資料夾）", text: $settings.webdavURL)
+                GlassPanel(title: L("WebDAV 同步")) {
+                    TextField(L("WebDAV 網址（資料夾）"), text: $settings.webdavURL)
                         .textInputAutocapitalization(.never).autocorrectionDisabled().textFieldStyle(.roundedBorder)
-                    TextField("帳號", text: $settings.webdavUser)
+                    TextField(L("帳號"), text: $settings.webdavUser)
                         .textInputAutocapitalization(.never).autocorrectionDisabled().textFieldStyle(.roundedBorder)
-                    SecureField("密碼", text: $davPassword).textFieldStyle(.roundedBorder)
+                    SecureField(L("密碼"), text: $davPassword).textFieldStyle(.roundedBorder)
                         .onChange(of: davPassword) { _, value in WebDAV.password = value }
                     HStack(spacing: 12) {
-                        GlassButton(title: "上傳", systemImage: "icloud.and.arrow.up") { davUpload() }.disabled(busy)
-                        GlassButton(title: "下載", systemImage: "icloud.and.arrow.down") { davDownload() }.disabled(busy)
+                        GlassButton(title: L("上傳"), systemImage: "icloud.and.arrow.up") { davUpload() }.disabled(busy)
+                        GlassButton(title: L("下載"), systemImage: "icloud.and.arrow.down") { davDownload() }.disabled(busy)
                     }
-                    Toggle("離開 App 時自動上傳", isOn: $settings.webdavAutoUpload)
+                    Toggle(L("離開 App 時自動上傳"), isOn: $settings.webdavAutoUpload)
                 }
 
                 if let message { Text(message).font(.footnote).foregroundStyle(.secondary).padding(.horizontal) }
@@ -135,7 +135,7 @@ struct CacheDataSettingsView: View {
             .padding(16)
         }
         .themedScreen()
-        .navigationTitle("快取與資料")
+        .navigationTitle(L("快取與資料"))
         .navigationBarTitleDisplayMode(.inline)
         .task { await refreshSize() }
         .sheet(item: $exported) { file in ShareSheet(urls: [file.url]) }
@@ -145,7 +145,7 @@ struct CacheDataSettingsView: View {
             defer { if scoped { url.stopAccessingSecurityScopedResource() } }
             do {
                 try AppBackup.restore(try Data(contentsOf: url))
-                message = "已匯入。請完全關閉並重新開啟 GodBook 以套用。"
+                message = L("已匯入。請完全關閉並重新開啟 GodBook 以套用。")
             } catch { message = error.localizedDescription }
         }
     }
@@ -161,22 +161,22 @@ struct CacheDataSettingsView: View {
     }
 
     private func davUpload() {
-        busy = true; message = "上傳中…"
+        busy = true; message = L("上傳中…")
         Task {
-            do { try await WebDAV.upload(); message = "已上傳到 WebDAV" }
-            catch { message = "上傳失敗：\(error.localizedDescription)" }
+            do { try await WebDAV.upload(); message = L("已上傳到 WebDAV") }
+            catch { message = L("上傳失敗：%@", "\(error.localizedDescription)") }
             busy = false
         }
     }
 
     private func davDownload() {
-        busy = true; message = "下載中…"
+        busy = true; message = L("下載中…")
         Task {
             do {
                 let data = try await WebDAV.download()
                 try AppBackup.restore(data)
-                message = "已下載並還原。請完全關閉並重新開啟 GodBook 以套用。"
-            } catch { message = "下載失敗：\(error.localizedDescription)" }
+                message = L("已下載並還原。請完全關閉並重新開啟 GodBook 以套用。")
+            } catch { message = L("下載失敗：%@", "\(error.localizedDescription)") }
             busy = false
         }
     }
@@ -190,16 +190,16 @@ struct SecuritySettingsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                GlassPanel(title: "App 鎖") {
-                    Toggle("需要 Face ID / Touch ID / 密碼才能開啟", isOn: $settings.appLockEnabled)
-                    Text("離開 App 後再回來會要求驗證，並在多工畫面隱藏內容。若裝置沒有設定密碼則不會鎖定。")
+                GlassPanel(title: L("App 鎖")) {
+                    Toggle(L("需要 Face ID / Touch ID / 密碼才能開啟"), isOn: $settings.appLockEnabled)
+                    Text(L("離開 App 後再回來會要求驗證，並在多工畫面隱藏內容。若裝置沒有設定密碼則不會鎖定。"))
                         .font(.footnote).foregroundStyle(.secondary)
                 }
             }
             .padding(16)
         }
         .themedScreen()
-        .navigationTitle("安全性")
+        .navigationTitle(L("安全性"))
         .navigationBarTitleDisplayMode(.inline)
     }
 }

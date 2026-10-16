@@ -62,10 +62,10 @@ final class LocalLibrary: ObservableObject {
             let chapters = try await Task.detached(priority: .userInitiated) {
                 try Self.performImport(from: url, to: target)
             }.value
-            guard !chapters.isEmpty else { throw AppError.message("找不到任何圖片") }
+            guard !chapters.isEmpty else { throw AppError.message(L("找不到任何圖片")) }
 
             let summary = ComicSummary(source: .local, sid: sid, title: title, coverURL: Self.coverURL(sid),
-                                       subtitle: "\(chapters.reduce(0) { $0 + $1.count }) 頁")
+                                       subtitle: L("%@ 頁", "\(chapters.reduce(0) { $0 + $1.count })"))
             let detail = ComicDetail(summary: summary, chapters: chapters.map(\.chapter),
                                      pageCount: chapters.reduce(0) { $0 + $1.count })
             try JSONEncoder().encode(detail).write(to: target.appendingPathComponent("detail.json"), options: .atomic)
@@ -117,7 +117,7 @@ final class LocalLibrary: ObservableObject {
         } else if ext == "cbz" || ext == "zip" || ext == "epub" {
             groups = try zipGroups(url, single: ext == "epub")
         } else {
-            throw AppError.message("不支援的檔案類型：.\(ext)")
+            throw AppError.message(L("不支援的檔案類型：.%@", "\(ext)"))
         }
 
         var result: [(chapter: Chapter, count: Int)] = []
@@ -152,7 +152,7 @@ final class LocalLibrary: ObservableObject {
     private nonisolated static func zipGroups(_ url: URL, single: Bool) throws -> [(title: String, write: (URL) throws -> Int)] {
         let zip = try ZipReader(url: url)
         let images = zip.entries.filter { !$0.isDirectory && isImage($0.name) }
-        guard !images.isEmpty else { throw AppError.message("壓縮檔裡沒有圖片") }
+        guard !images.isEmpty else { throw AppError.message(L("壓縮檔裡沒有圖片")) }
 
         func writer(_ entries: [ZipEntry]) -> (URL) throws -> Int {
             { dir in
@@ -205,7 +205,7 @@ final class LocalLibrary: ObservableObject {
     }
 
     private nonisolated static func writePDF(_ url: URL, to dir: URL) throws -> Int {
-        guard let document = PDFDocument(url: url) else { throw AppError.message("無法開啟 PDF") }
+        guard let document = PDFDocument(url: url) else { throw AppError.message(L("無法開啟 PDF")) }
         for index in 0..<document.pageCount {
             try autoreleasepool {
                 guard let page = document.page(at: index) else { return }
@@ -223,7 +223,7 @@ final class LocalLibrary: ObservableObject {
 /// 本機漫畫來源（只供閱讀；列表由書庫的「本機」分頁顯示）。
 struct LocalSource: ComicSource {
     let kind = SourceKind.local
-    let sortOptions = [SortOption(id: "all", title: "全部")]
+    let sortOptions = [SortOption(id: "all", title: L("全部"))]
 
     func browse(query: String, page: Int, sort: SortOption, filters: [String: String]) async throws -> ComicPageResult {
         let all = LocalLibrary.loadList()
@@ -232,14 +232,14 @@ struct LocalSource: ComicSource {
     }
 
     func detail(of summary: ComicSummary) async throws -> ComicDetail {
-        guard var detail = LocalLibrary.loadDetail(summary.sid) else { throw AppError.message("找不到這本本機漫畫") }
+        guard var detail = LocalLibrary.loadDetail(summary.sid) else { throw AppError.message(L("找不到這本本機漫畫")) }
         detail.summary.coverURL = LocalLibrary.coverURL(summary.sid)
         return detail
     }
 
     func pages(of detail: ComicDetail, chapter: Chapter) async throws -> [ReaderPage] {
         let files = LocalLibrary.pageFiles(sid: detail.summary.sid, chapterId: chapter.id)
-        guard !files.isEmpty else { throw AppError.message("這個章節沒有圖片") }
+        guard !files.isEmpty else { throw AppError.message(L("這個章節沒有圖片")) }
         return files.enumerated().map { ReaderPage(index: $0.offset, image: ImageSpec(url: $0.element, source: .local)) }
     }
 }

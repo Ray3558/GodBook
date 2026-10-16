@@ -39,7 +39,7 @@ final class ZoomScrollView: UIScrollView, UIScrollViewDelegate {
         spinner.hidesWhenStopped = true
         addSubview(spinner)
 
-        retryLabel.text = "載入失敗，點一下重試"
+        retryLabel.text = L("載入失敗，點一下重試")
         retryLabel.textColor = .white
         retryLabel.font = .preferredFont(forTextStyle: .footnote)
         retryLabel.isHidden = true

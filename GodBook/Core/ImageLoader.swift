@@ -83,7 +83,7 @@ actor ImageLoader {
 
     private static func fetch(_ spec: ImageSpec) async throws -> UIImage {
         let data = try await rawData(spec)
-        guard var image = UIImage(data: data) else { throw AppError.message("無法解碼圖片") }
+        guard var image = UIImage(data: data) else { throw AppError.message(L("無法解碼圖片")) }
         if spec.source.isVenera, let key = spec.imageKey {
             let parsed = ThumbnailCrop.parse(key)
             if !parsed.suffix.isEmpty { image = ThumbnailCrop.apply(parsed, to: image) }
@@ -112,7 +112,7 @@ actor ImageLoader {
                 comicId: spec.comicId, epId: spec.epId)
         }
 
-        var lastError: Error = AppError.message("下載圖片失敗")
+        var lastError: Error = AppError.message(L("下載圖片失敗"))
         for attempt in 0..<3 {
             do {
                 var result = try await HTTP.data(for: makeRequest(spec, url: spec.url))

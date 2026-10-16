@@ -21,20 +21,20 @@ struct FolderPickerSheet: View {
                         HStack { Label(folder.name, systemImage: "folder"); Spacer(); Text("\(folder.items.count)").foregroundStyle(.secondary) }
                     }
                 }
-                Button { creating = true } label: { Label("新增資料夾", systemImage: "folder.badge.plus") }
+                Button { creating = true } label: { Label(L("新增資料夾"), systemImage: "folder.badge.plus") }
             }
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("取消") { dismiss() } } }
-            .alert("新增資料夾", isPresented: $creating) {
-                TextField("名稱", text: $newName)
-                Button("建立") {
+            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button(L("取消")) { dismiss() } } }
+            .alert(L("新增資料夾"), isPresented: $creating) {
+                TextField(L("名稱"), text: $newName)
+                Button(L("建立")) {
                     let id = favorites.createFolder(newName)
                     newName = ""
                     onPick(id)
                     dismiss()
                 }
-                Button("取消", role: .cancel) { newName = "" }
+                Button(L("取消"), role: .cancel) { newName = "" }
             }
         }
         .presentationDetents([.medium, .large])
@@ -64,18 +64,18 @@ struct FavoriteToggleSheet: View {
                         }
                     }
                 }
-                Button { creating = true } label: { Label("新增資料夾", systemImage: "folder.badge.plus") }
+                Button { creating = true } label: { Label(L("新增資料夾"), systemImage: "folder.badge.plus") }
             }
-            .navigationTitle("加入收藏")
+            .navigationTitle(L("加入收藏"))
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("完成") { dismiss() } } }
-            .alert("新增資料夾", isPresented: $creating) {
-                TextField("名稱", text: $newName)
-                Button("建立並加入") {
+            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button(L("完成")) { dismiss() } } }
+            .alert(L("新增資料夾"), isPresented: $creating) {
+                TextField(L("名稱"), text: $newName)
+                Button(L("建立並加入")) {
                     favorites.add(summary, to: favorites.createFolder(newName))
                     newName = ""
                 }
-                Button("取消", role: .cancel) { newName = "" }
+                Button(L("取消"), role: .cancel) { newName = "" }
             }
         }
         .presentationDetents([.medium])
@@ -125,7 +125,7 @@ struct FavoritesView: View {
             if items.isEmpty {
                 VStack(spacing: 12) {
                     Image(systemName: "heart").font(.largeTitle)
-                    Text(tagFilter == nil ? "這個資料夾還沒有收藏" : "沒有符合這個標籤的收藏")
+                    Text(tagFilter == nil ? L("這個資料夾還沒有收藏") : L("沒有符合這個標籤的收藏"))
                 }
                 .foregroundStyle(.secondary).frame(maxWidth: .infinity).padding(.top, 60)
             } else {
@@ -138,35 +138,35 @@ struct FavoritesView: View {
         }
         .safeAreaInset(edge: .bottom) { if editing { selectionBar } }
         .sheet(item: $pick) { action in
-            FolderPickerSheet(title: action == .move ? "移動到" : "複製到", excluding: currentID) { target in
+            FolderPickerSheet(title: action == .move ? L("移動到") : L("複製到"), excluding: currentID) { target in
                 guard let from = currentID else { return }
                 if action == .move { favorites.batchMove(selection, from: from, to: target) }
                 else { favorites.batchCopy(selection, from: from, to: target) }
                 selection = []; editing = false
             }
         }
-        .alert("重新命名資料夾", isPresented: $renaming) {
-            TextField("名稱", text: $renameText)
-            Button("確定") { if let id = currentID { favorites.rename(id, to: renameText) } }
-            Button("取消", role: .cancel) {}
+        .alert(L("重新命名資料夾"), isPresented: $renaming) {
+            TextField(L("名稱"), text: $renameText)
+            Button(L("確定")) { if let id = currentID { favorites.rename(id, to: renameText) } }
+            Button(L("取消"), role: .cancel) {}
         }
-        .alert("新增資料夾", isPresented: $creating) {
-            TextField("名稱", text: $newName)
-            Button("建立") { folderID = favorites.createFolder(newName); newName = "" }
-            Button("取消", role: .cancel) { newName = "" }
+        .alert(L("新增資料夾"), isPresented: $creating) {
+            TextField(L("名稱"), text: $newName)
+            Button(L("建立")) { folderID = favorites.createFolder(newName); newName = "" }
+            Button(L("取消"), role: .cancel) { newName = "" }
         }
-        .alert("編輯標籤", isPresented: Binding(get: { tagEditing != nil }, set: { if !$0 { tagEditing = nil } })) {
-            TextField("用逗號分隔，例如：長篇, 已看完", text: $tagText)
-            Button("儲存") {
+        .alert(L("編輯標籤"), isPresented: Binding(get: { tagEditing != nil }, set: { if !$0 { tagEditing = nil } })) {
+            TextField(L("用逗號分隔，例如：長篇, 已看完"), text: $tagText)
+            Button(L("儲存")) {
                 if let item = tagEditing, let id = currentID {
                     let tags = tagText.split(whereSeparator: { $0 == "," || $0 == "，" }).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
                     favorites.setTags(item.id, in: id, tags: tags)
                 }
             }
-            Button("取消", role: .cancel) {}
+            Button(L("取消"), role: .cancel) {}
         }
-        .confirmationDialog("刪除這個資料夾？裡面的收藏也會一併移除。", isPresented: $confirmDelete, titleVisibility: .visible) {
-            Button("刪除", role: .destructive) { if let id = currentID { favorites.deleteFolder(id); folderID = nil } }
+        .confirmationDialog(L("刪除這個資料夾？裡面的收藏也會一併移除。"), isPresented: $confirmDelete, titleVisibility: .visible) {
+            Button(L("刪除"), role: .destructive) { if let id = currentID { favorites.deleteFolder(id); folderID = nil } }
         }
     }
 
@@ -234,9 +234,9 @@ struct FavoritesView: View {
                     }
                     .buttonStyle(.plain)
                     .contextMenu {
-                        Button { tagText = item.tags.joined(separator: ", "); tagEditing = item } label: { Label("編輯標籤", systemImage: "tag") }
+                        Button { tagText = item.tags.joined(separator: ", "); tagEditing = item } label: { Label(L("編輯標籤"), systemImage: "tag") }
                         Button(role: .destructive) { if let id = currentID { favorites.remove(item.summary, from: id) } } label: {
-                            Label("取消收藏", systemImage: "heart.slash")
+                            Label(L("取消收藏"), systemImage: "heart.slash")
                         }
                     }
                 }
@@ -247,25 +247,25 @@ struct FavoritesView: View {
 
     private var menu: some View {
         Menu {
-            Button { editing.toggle(); selection = [] } label: { Label(editing ? "完成選取" : "選取", systemImage: "checkmark.circle") }
+            Button { editing.toggle(); selection = [] } label: { Label(editing ? L("完成選取") : L("選取"), systemImage: "checkmark.circle") }
             if let id = currentID, let folder {
-                Menu("排序") {
+                Menu(L("排序")) {
                     ForEach(FavoriteSort.allCases) { sort in
                         Button { favorites.setSort(id, sort) } label: {
                             if folder.sort == sort { Label(sort.title, systemImage: "checkmark") } else { Text(sort.title) }
                         }
                     }
                 }
-                Button { renameText = folder.name; renaming = true } label: { Label("重新命名", systemImage: "pencil") }
-                Button { favorites.moveFolder(id, by: -1) } label: { Label("資料夾前移", systemImage: "arrow.left") }
-                Button { favorites.moveFolder(id, by: 1) } label: { Label("資料夾後移", systemImage: "arrow.right") }
+                Button { renameText = folder.name; renaming = true } label: { Label(L("重新命名"), systemImage: "pencil") }
+                Button { favorites.moveFolder(id, by: -1) } label: { Label(L("資料夾前移"), systemImage: "arrow.left") }
+                Button { favorites.moveFolder(id, by: 1) } label: { Label(L("資料夾後移"), systemImage: "arrow.right") }
                 Button {
                     follow.followedFolderID = follow.followedFolderID == id ? nil : id
                 } label: {
-                    Label(follow.followedFolderID == id ? "取消追蹤更新" : "追蹤這個資料夾的更新", systemImage: "bell")
+                    Label(follow.followedFolderID == id ? L("取消追蹤更新") : L("追蹤這個資料夾的更新"), systemImage: "bell")
                 }
                 if favorites.folders.count > 1 {
-                    Button(role: .destructive) { confirmDelete = true } label: { Label("刪除資料夾", systemImage: "trash") }
+                    Button(role: .destructive) { confirmDelete = true } label: { Label(L("刪除資料夾"), systemImage: "trash") }
                 }
             }
         } label: { Image(systemName: "ellipsis.circle") }
@@ -273,14 +273,14 @@ struct FavoritesView: View {
 
     private var selectionBar: some View {
         HStack(spacing: 10) {
-            Button("全選") { selection = Set(items.map(\.id)) }
+            Button(L("全選")) { selection = Set(items.map(\.id)) }
             Spacer()
-            Button { pick = .move } label: { Label("移動", systemImage: "folder") }.disabled(selection.isEmpty)
-            Button { pick = .copy } label: { Label("複製", systemImage: "doc.on.doc") }.disabled(selection.isEmpty)
+            Button { pick = .move } label: { Label(L("移動"), systemImage: "folder") }.disabled(selection.isEmpty)
+            Button { pick = .copy } label: { Label(L("複製"), systemImage: "doc.on.doc") }.disabled(selection.isEmpty)
             Button(role: .destructive) {
                 if let id = currentID { favorites.batchDelete(selection, from: id) }
                 selection = []
-            } label: { Label("刪除", systemImage: "trash") }.disabled(selection.isEmpty)
+            } label: { Label(L("刪除"), systemImage: "trash") }.disabled(selection.isEmpty)
         }
         .font(.subheadline.weight(.semibold))
         .padding(.horizontal, 16).padding(.vertical, 12)

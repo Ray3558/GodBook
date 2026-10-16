@@ -644,7 +644,7 @@ final class VeneraBridge {
         DispatchQueue.main.async {
             let alert = UIAlertController(title: title, message: content, preferredStyle: .alert)
             if actions.isEmpty {
-                alert.addAction(UIAlertAction(title: "好", style: .default))
+                alert.addAction(UIAlertAction(title: L("好"), style: .default))
             }
             for (index, action) in actions.enumerated() {
                 let style: UIAlertAction.Style = (action["style"] as? String) == "danger" ? .destructive : .default
@@ -661,10 +661,10 @@ final class VeneraBridge {
         DispatchQueue.main.async {
             let alert = UIAlertController(title: title, message: nil, preferredStyle: .alert)
             alert.addTextField()
-            alert.addAction(UIAlertAction(title: "取消", style: .cancel) { _ in
+            alert.addAction(UIAlertAction(title: L("取消"), style: .cancel) { _ in
                 queue.async { _ = callback.call(withArguments: [NSNull()]) }
             })
-            alert.addAction(UIAlertAction(title: "確定", style: .default) { _ in
+            alert.addAction(UIAlertAction(title: L("確定"), style: .default) { _ in
                 let text = alert.textFields?.first?.text ?? ""
                 queue.async { _ = callback.call(withArguments: [text]) }
             })
@@ -682,7 +682,7 @@ final class VeneraBridge {
                     queue.async { _ = callback.call(withArguments: [index]) }
                 })
             }
-            sheet.addAction(UIAlertAction(title: "取消", style: .cancel) { _ in
+            sheet.addAction(UIAlertAction(title: L("取消"), style: .cancel) { _ in
                 queue.async { _ = callback.call(withArguments: [-1]) }
             })
             UIApplication.topViewController()?.present(sheet, animated: true)

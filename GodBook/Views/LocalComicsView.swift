@@ -19,20 +19,20 @@ struct LocalComicsView: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            GlassButton(title: local.isImporting ? "匯入中…" : "匯入漫畫", systemImage: "square.and.arrow.down", prominent: true) {
+            GlassButton(title: local.isImporting ? L("匯入中…") : L("匯入漫畫"), systemImage: "square.and.arrow.down", prominent: true) {
                 importing = true
             }
             .disabled(local.isImporting)
             .padding(.horizontal, 12)
 
-            Text("支援 CBZ / ZIP / EPUB / PDF 與圖片資料夾（含子資料夾分章）。")
+            Text(L("支援 CBZ / ZIP / EPUB / PDF 與圖片資料夾（含子資料夾分章）。"))
                 .font(.footnote).foregroundStyle(.secondary).padding(.horizontal, 16)
             if let message { Text(message).font(.footnote).foregroundStyle(.red).padding(.horizontal, 16) }
 
             if local.comics.isEmpty {
                 VStack(spacing: 12) {
                     Image(systemName: "tray").font(.largeTitle)
-                    Text("還沒有匯入的漫畫")
+                    Text(L("還沒有匯入的漫畫"))
                 }
                 .foregroundStyle(.secondary).frame(maxWidth: .infinity).padding(.top, 40)
             } else {
@@ -42,13 +42,13 @@ struct LocalComicsView: View {
                         NavigationLink(value: comic) { ComicCard(comic: comic) }
                             .buttonStyle(.plain)
                             .contextMenu {
-                                Button { renameText = comic.title; renaming = comic } label: { Label("重新命名", systemImage: "pencil") }
-                                Menu("匯出") {
+                                Button { renameText = comic.title; renaming = comic } label: { Label(L("重新命名"), systemImage: "pencil") }
+                                Menu(L("匯出")) {
                                     ForEach(ExportFormat.allCases) { format in
                                         Button(format.title) { export(comic, format) }
                                     }
                                 }
-                                Button(role: .destructive) { local.remove(comic) } label: { Label("刪除", systemImage: "trash") }
+                                Button(role: .destructive) { local.remove(comic) } label: { Label(L("刪除"), systemImage: "trash") }
                             }
                     }
                 }
@@ -63,14 +63,14 @@ struct LocalComicsView: View {
             Task {
                 for url in urls {
                     do { try await local.importItem(at: url) }
-                    catch { message = "匯入「\(url.lastPathComponent)」失敗：\(error.localizedDescription)" }
+                    catch { message = L("匯入「%@」失敗：%@", "\(url.lastPathComponent)", "\(error.localizedDescription)") }
                 }
             }
         }
-        .alert("重新命名", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
-            TextField("標題", text: $renameText)
-            Button("確定") { if let comic = renaming { local.rename(comic, to: renameText) } }
-            Button("取消", role: .cancel) {}
+        .alert(L("重新命名"), isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
+            TextField(L("標題"), text: $renameText)
+            Button(L("確定")) { if let comic = renaming { local.rename(comic, to: renameText) } }
+            Button(L("取消"), role: .cancel) {}
         }
         .sheet(item: $exported) { ShareSheet(urls: [$0.url]) }
     }

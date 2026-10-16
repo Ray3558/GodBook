@@ -21,7 +21,7 @@ struct LibraryView: View {
                 FollowView()
             case .history:
                 if library.history.isEmpty {
-                    emptyState("沒有閱讀紀錄", systemImage: "clock")
+                    emptyState(L("沒有閱讀紀錄"), systemImage: "clock")
                 } else {
                     historyList
                 }
@@ -37,12 +37,12 @@ struct LibraryView: View {
         }
         .themedScreen()
         .safeAreaInset(edge: .top, spacing: 0) { tabChips }
-        .navigationTitle("書庫")
+        .navigationTitle(L("書庫"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if tab == .history && !library.history.isEmpty {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("清除", role: .destructive) { library.clearHistory() }
+                    Button(L("清除"), role: .destructive) { library.clearHistory() }
                 }
             }
         }
@@ -55,7 +55,7 @@ struct LibraryView: View {
                     let selected = item == tab
                     Button { withAnimation(.snappy) { tab = item } } label: {
                         HStack(spacing: 4) {
-                            Text(item.rawValue)
+                            Text(L(item.rawValue))
                             if item == .follow, follow.updateCount > 0 {
                                 Text("\(follow.updateCount)").font(.caption2.weight(.bold)).padding(.horizontal, 5)
                                     .background(Color.red, in: Capsule()).foregroundStyle(.white)
@@ -84,7 +84,7 @@ struct LibraryView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                         VStack(alignment: .leading, spacing: 4) {
                             Text(entry.summary.title).font(.subheadline.weight(.semibold)).lineLimit(2)
-                            Text("\(entry.summary.source.title) · \(entry.chapterTitle) · 第 \(entry.pageIndex + 1) 頁")
+                            Text(L("%@ · %@ · 第 %@ 頁", "\(entry.summary.source.title)", "\(entry.chapterTitle)", "\(entry.pageIndex + 1)"))
                                 .font(.caption).foregroundStyle(.secondary).lineLimit(1)
                             Text(entry.date.formatted(date: .abbreviated, time: .shortened))
                                 .font(.caption2).foregroundStyle(.secondary)
@@ -94,7 +94,7 @@ struct LibraryView: View {
                     .padding(10)
                     .glassCard(cornerRadius: 20, interactive: true)
                     .contextMenu {
-                        Button("移除紀錄", role: .destructive) { library.removeHistory(entry) }
+                        Button(L("移除紀錄"), role: .destructive) { library.removeHistory(entry) }
                     }
                 }
                 .buttonStyle(.plain)
@@ -139,7 +139,7 @@ private struct CloudFavoritesView: View {
             if kinds.isEmpty {
                 VStack(spacing: 12) {
                     Image(systemName: "person.crop.circle.badge.questionmark").font(.largeTitle)
-                    Text("請先到「設定」登入禁漫或 venera 漫畫源的帳號")
+                    Text(L("請先到「設定」登入禁漫或 venera 漫畫源的帳號"))
                 }
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity)

@@ -38,7 +38,7 @@ enum AppBackup {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         guard let payload = try? decoder.decode(Payload.self, from: data) else {
-            throw AppError.message("這不是有效的 GodBook 備份檔")
+            throw AppError.message(L("這不是有效的 GodBook 備份檔"))
         }
         let root = Storage.directory
         for (relative, content) in payload.files {
@@ -78,7 +78,7 @@ enum WebDAV {
     private static func request(_ method: String, path: String = fileName, body: Data? = nil) throws -> URLRequest {
         let settings = AppSettings.shared
         let base = settings.webdavURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !base.isEmpty, var url = URL(string: base) else { throw AppError.message("請先填寫 WebDAV 網址") }
+        guard !base.isEmpty, var url = URL(string: base) else { throw AppError.message(L("請先填寫 WebDAV 網址")) }
         if !path.isEmpty { url.appendPathComponent(path) }
         var request = URLRequest(url: url)
         request.httpMethod = method
@@ -102,9 +102,9 @@ enum WebDAV {
 
     static func download() async throws -> Data {
         let (data, response) = try await HTTP.plainSession.data(for: try request("GET"))
-        guard let http = response as? HTTPURLResponse else { throw AppError.message("無效的回應") }
+        guard let http = response as? HTTPURLResponse else { throw AppError.message(L("無效的回應")) }
         guard http.statusCode == 200 else {
-            throw http.statusCode == 404 ? AppError.message("伺服器上還沒有備份檔") : AppError.http(http.statusCode)
+            throw http.statusCode == 404 ? AppError.message(L("伺服器上還沒有備份檔")) : AppError.http(http.statusCode)
         }
         return data
     }

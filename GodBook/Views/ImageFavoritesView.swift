@@ -12,8 +12,8 @@ struct ImageFavoritesView: View {
             if store.items.isEmpty {
                 VStack(spacing: 12) {
                     Image(systemName: "photo.on.rectangle").font(.largeTitle)
-                    Text("還沒有收藏的圖片")
-                    Text("閱讀時點右上角「…」→「收藏這張圖」，或在閱讀設定開啟雙擊收藏")
+                    Text(L("還沒有收藏的圖片"))
+                    Text(L("閱讀時點右上角「…」→「收藏這張圖」，或在閱讀設定開啟雙擊收藏"))
                         .font(.footnote).multilineTextAlignment(.center)
                 }
                 .foregroundStyle(.secondary)
@@ -67,7 +67,7 @@ struct ImageFavoriteViewer: View {
                 circle("xmark") { dismiss() }
                 VStack(alignment: .leading, spacing: 0) {
                     Text(item.summary.title).font(.footnote.weight(.semibold)).lineLimit(1)
-                    Text("\(item.chapterTitle) · 第 \(item.pageIndex + 1) 頁").font(.caption2).foregroundStyle(.secondary)
+                    Text(L("%@ · 第 %@ 頁", "\(item.chapterTitle)", "\(item.pageIndex + 1)")).font(.caption2).foregroundStyle(.secondary)
                 }
                 .padding(.horizontal, 14).padding(.vertical, 8).glassCapsule()
                 Spacer()
@@ -83,7 +83,7 @@ struct ImageFavoriteViewer: View {
                 circle("square.and.arrow.down") {
                     if let image = UIImage(contentsOfFile: store.fileURL(item).path) {
                         UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
-                        message = "已儲存到相簿"
+                        message = L("已儲存到相簿")
                     }
                 }
                 circle(loadingReader ? "hourglass" : "book") { Task { await openReader() } }
@@ -125,7 +125,7 @@ struct ImageFavoriteViewer: View {
         } else if let cached = DownloadStorage.loadDetail(summary) {
             detail = cached
         } else {
-            message = "無法載入漫畫資料"
+            message = L("無法載入漫畫資料")
             return
         }
         let index = detail.chapters.firstIndex { $0.id == item.chapterId } ?? 0

@@ -6,59 +6,59 @@ struct BrowseSettingsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                GlassPanel(title: "列表顯示") {
-                    Picker("樣式", selection: $settings.listDisplay) {
-                        Text("卡片").tag("card")
-                        Text("簡潔").tag("brief")
-                        Text("詳細").tag("detailed")
+                GlassPanel(title: L("列表顯示")) {
+                    Picker(L("樣式"), selection: $settings.listDisplay) {
+                        Text(L("卡片")).tag("card")
+                        Text(L("簡潔")).tag("brief")
+                        Text(L("詳細")).tag("detailed")
                     }
                     .pickerStyle(.segmented)
                     HStack {
-                        Text("卡片大小")
+                        Text(L("卡片大小"))
                         Slider(value: $settings.listScale, in: 0.75...1.25)
                     }
-                    Toggle("分頁模式（關閉則連續捲動載入）", isOn: $settings.listPaging)
-                    Toggle("卡片上顯示「已收藏 / 已讀」狀態", isOn: $settings.showTileStatus)
-                    Toggle("章節列表預設反轉順序", isOn: $settings.reverseChapters)
+                    Toggle(L("分頁模式（關閉則連續捲動載入）"), isOn: $settings.listPaging)
+                    Toggle(L("卡片上顯示「已收藏 / 已讀」狀態"), isOn: $settings.showTileStatus)
+                    Toggle(L("章節列表預設反轉順序"), isOn: $settings.reverseChapters)
                 }
 
-                GlassPanel(title: "搜尋") {
-                    Picker("預設搜尋目標", selection: $settings.defaultSearchTarget) {
-                        Text("目前來源").tag("current")
-                        Text("聚合搜尋（多個來源）").tag("aggregated")
+                GlassPanel(title: L("搜尋")) {
+                    Picker(L("預設搜尋目標"), selection: $settings.defaultSearchTarget) {
+                        Text(L("目前來源")).tag("current")
+                        Text(L("聚合搜尋（多個來源）")).tag("aggregated")
                     }
                     .pickerStyle(.menu)
-                    Picker("自動語言過濾", selection: $settings.autoLanguage) {
-                        Text("不過濾").tag("none")
-                        Text("中文").tag("chinese")
-                        Text("英文").tag("english")
-                        Text("日文").tag("japanese")
+                    Picker(L("自動語言過濾"), selection: $settings.autoLanguage) {
+                        Text(L("不過濾")).tag("none")
+                        Text(L("中文")).tag("chinese")
+                        Text(L("英文")).tag("english")
+                        Text(L("日文")).tag("japanese")
                     }
                     .pickerStyle(.menu)
-                    Text("語言過濾只對 nhentai 與 ehentai 生效。")
+                    Text(L("語言過濾只對 nhentai 與 ehentai 生效。"))
                         .font(.footnote).foregroundStyle(.secondary)
-                    Button("清除搜尋歷史", role: .destructive) { settings.searchHistory = [] }
+                    Button(L("清除搜尋歷史"), role: .destructive) { settings.searchHistory = [] }
                         .disabled(settings.searchHistory.isEmpty)
                 }
 
-                GlassPanel(title: "屏蔽") {
+                GlassPanel(title: L("屏蔽")) {
                     NavigationLink { BlocklistView(comments: false) } label: {
-                        HStack { Text("漫畫關鍵字屏蔽（\(settings.blockedWords.count)）"); Spacer(); Image(systemName: "chevron.right").font(.caption) }
+                        HStack { Text(L("漫畫關鍵字屏蔽（%@）", "\(settings.blockedWords.count)")); Spacer(); Image(systemName: "chevron.right").font(.caption) }
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     NavigationLink { BlocklistView(comments: true) } label: {
-                        HStack { Text("評論關鍵字屏蔽（\(settings.blockedCommentWords.count)）"); Spacer(); Image(systemName: "chevron.right").font(.caption) }
+                        HStack { Text(L("評論關鍵字屏蔽（%@）", "\(settings.blockedCommentWords.count)")); Spacer(); Image(systemName: "chevron.right").font(.caption) }
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                 }
 
-                GlassPanel(title: "啟動") {
-                    Picker("開啟時的頁面", selection: $settings.initialTab) {
-                        Text("探索").tag(0)
-                        Text("書庫").tag(1)
-                        Text("設定").tag(2)
+                GlassPanel(title: L("啟動")) {
+                    Picker(L("開啟時的頁面"), selection: $settings.initialTab) {
+                        Text(L("探索")).tag(0)
+                        Text(L("書庫")).tag(1)
+                        Text(L("設定")).tag(2)
                     }
                     .pickerStyle(.segmented)
                 }
@@ -66,7 +66,7 @@ struct BrowseSettingsView: View {
             .padding(16)
         }
         .themedScreen()
-        .navigationTitle("瀏覽")
+        .navigationTitle(L("瀏覽"))
         .navigationBarTitleDisplayMode(.inline)
     }
 }
@@ -82,13 +82,13 @@ struct BlocklistView: View {
         List {
             Section {
                 HStack {
-                    TextField("新增關鍵字", text: $text)
+                    TextField(L("新增關鍵字"), text: $text)
                         .textInputAutocapitalization(.never).autocorrectionDisabled()
                         .onSubmit(add)
-                    Button("加入", action: add).disabled(text.trimmingCharacters(in: .whitespaces).isEmpty)
+                    Button(L("加入"), action: add).disabled(text.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             } footer: {
-                Text(comments ? "包含這些關鍵字的評論不會顯示。" : "標題、副標題或標籤包含這些關鍵字的漫畫不會出現在列表中。")
+                Text(comments ? L("包含這些關鍵字的評論不會顯示。") : L("標題、副標題或標籤包含這些關鍵字的漫畫不會出現在列表中。"))
             }
             Section {
                 ForEach(words, id: \.self) { Text($0) }
@@ -101,7 +101,7 @@ struct BlocklistView: View {
         }
         .scrollContentBackground(.hidden)
         .themedScreen()
-        .navigationTitle(comments ? "評論關鍵字" : "漫畫關鍵字")
+        .navigationTitle(comments ? L("評論關鍵字") : L("漫畫關鍵字"))
         .navigationBarTitleDisplayMode(.inline)
     }
 
@@ -125,7 +125,7 @@ struct SourceOrderView: View {
                 HStack {
                     Text(kind.title)
                     Spacer()
-                    if !settings.isEnabled(kind) { Text("已停用").font(.caption).foregroundStyle(.secondary) }
+                    if !settings.isEnabled(kind) { Text(L("已停用")).font(.caption).foregroundStyle(.secondary) }
                 }
             }
             .onMove { from, to in
@@ -136,7 +136,7 @@ struct SourceOrderView: View {
         .environment(\.editMode, .constant(.active))
         .scrollContentBackground(.hidden)
         .themedScreen()
-        .navigationTitle("來源順序")
+        .navigationTitle(L("來源順序"))
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { items = SourceKind.all }
     }

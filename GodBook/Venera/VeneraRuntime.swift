@@ -38,12 +38,12 @@ final class VeneraRuntime {
 
     private func ensureLoaded(_ key: String, in ctx: JSContext) throws {
         guard !loaded.contains(key) else { return }
-        guard let js = VeneraFiles.read(key) else { throw AppError.message("找不到漫畫源腳本：\(key)") }
+        guard let js = VeneraFiles.read(key) else { throw AppError.message(L("找不到漫畫源腳本：%@", "\(key)")) }
         ctx.exception = nil
         ctx.evaluateScript("__loadSource(\(jsLiteral(js)))")
         if let exception = ctx.exception {
             ctx.exception = nil
-            throw AppError.message("載入漫畫源失敗：\(exception.toString() ?? "")")
+            throw AppError.message(L("載入漫畫源失敗：%@", "\(exception.toString() ?? "")"))
         }
         loaded.insert(key)
     }
@@ -71,7 +71,7 @@ final class VeneraRuntime {
                 let fail: @convention(block) (String?) -> Void = { message in
                     guard !finished else { return }
                     finished = true
-                    continuation.resume(throwing: AppError.message(message ?? "腳本執行失敗"))
+                    continuation.resume(throwing: AppError.message(message ?? L("腳本執行失敗")))
                 }
 
                 ctx.exception = nil
@@ -79,7 +79,7 @@ final class VeneraRuntime {
                 if let exception = ctx.exception {
                     ctx.exception = nil
                     finished = true
-                    continuation.resume(throwing: AppError.message(exception.toString() ?? "腳本錯誤"))
+                    continuation.resume(throwing: AppError.message(exception.toString() ?? L("腳本錯誤")))
                     return
                 }
                 let runner = ctx.objectForKeyedSubscript("__run")
@@ -88,7 +88,7 @@ final class VeneraRuntime {
                     ctx.exception = nil
                     if !finished {
                         finished = true
-                        continuation.resume(throwing: AppError.message(exception.toString() ?? "腳本錯誤"))
+                        continuation.resume(throwing: AppError.message(exception.toString() ?? L("腳本錯誤")))
                     }
                 }
             }
@@ -123,7 +123,7 @@ final class VeneraRuntime {
     }
 
     private static func decodeInfo(_ value: Any?) throws -> VeneraInfo {
-        guard let value, JSONSerialization.isValidJSONObject(value) else { throw AppError.message("無法解析漫畫源資訊") }
+        guard let value, JSONSerialization.isValidJSONObject(value) else { throw AppError.message(L("無法解析漫畫源資訊")) }
         let data = try JSONSerialization.data(withJSONObject: value)
         return try JSONDecoder().decode(VeneraInfo.self, from: data)
     }
@@ -143,7 +143,7 @@ final class VeneraRuntime {
     func loadImage(sourceKey: String, imageKey: String, comicId: String?, epId: String?) async throws -> Data {
         let result = try await call(sourceKey, "__loadImage", [imageKey, comicId, epId])
         guard let b64 = result["data"] as? String, let data = Data(base64Encoded: b64) else {
-            throw AppError.message("圖片載入失敗")
+            throw AppError.message(L("圖片載入失敗"))
         }
         if let script = result["modify"] as? String, !script.isEmpty {
             return try await modifyImage(data, script: script)
@@ -161,7 +161,7 @@ final class VeneraRuntime {
                 let isolatedQueue = DispatchQueue(label: "godbook.venera.image")
                 let (ctx, bridge) = Self.makeContext(queue: isolatedQueue)
                 guard let source = Bitmap.decode(data) else {
-                    continuation.resume(throwing: AppError.message("無法解碼圖片"))
+                    continuation.resume(throwing: AppError.message(L("無法解碼圖片")))
                     return
                 }
                 let key = bridge.bitmaps.add(source)
@@ -169,13 +169,13 @@ final class VeneraRuntime {
                 ctx.evaluateScript(script)
                 let result = ctx.evaluateScript("(function(){ var image = new Image(\(key)); var r = modifyImage(image); return r.key; })()")
                 if let exception = ctx.exception {
-                    continuation.resume(throwing: AppError.message("modifyImage 失敗：\(exception.toString() ?? "")"))
+                    continuation.resume(throwing: AppError.message(L("modifyImage 失敗：%@", "\(exception.toString() ?? "")")))
                     return
                 }
                 guard let result, result.isNumber,
                       let bitmap = bridge.bitmaps.get(Int(result.toInt32())),
                       let encoded = bitmap.encodeJPEG() else {
-                    continuation.resume(throwing: AppError.message("modifyImage 沒有回傳圖片"))
+                    continuation.resume(throwing: AppError.message(L("modifyImage 沒有回傳圖片")))
                     return
                 }
                 continuation.resume(returning: encoded)

@@ -46,6 +46,11 @@ targets:
       path: Config/Info.plist
       properties:
         CFBundleDisplayName: GodBook
+        CFBundleDevelopmentRegion: zh-Hant
+        CFBundleLocalizations:
+          - zh-Hant
+          - zh-Hans
+          - en
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         UILaunchScreen: {}

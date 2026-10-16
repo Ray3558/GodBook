@@ -12,12 +12,12 @@ enum ReaderMode: String, CaseIterable, Identifiable, Codable {
 
     var title: String {
         switch self {
-        case .vertical: "連續捲動（由上到下）"
-        case .horizontal: "翻頁（左到右）"
-        case .horizontalRTL: "翻頁（右到左，日漫）"
-        case .pagedVertical: "翻頁（上到下）"
-        case .continuousHorizontal: "連續捲動（左到右）"
-        case .continuousHorizontalRTL: "連續捲動（右到左）"
+        case .vertical: L("連續捲動（由上到下）")
+        case .horizontal: L("翻頁（左到右）")
+        case .horizontalRTL: L("翻頁（右到左，日漫）")
+        case .pagedVertical: L("翻頁（上到下）")
+        case .continuousHorizontal: L("連續捲動（左到右）")
+        case .continuousHorizontalRTL: L("連續捲動（右到左）")
         }
     }
 

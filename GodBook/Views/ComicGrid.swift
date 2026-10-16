@@ -190,14 +190,14 @@ struct PagedComicList: View {
             } else if let message = model.errorMessage {
                 VStack(spacing: 10) {
                     Text(message).font(.footnote).multilineTextAlignment(.center)
-                    GlassButton(title: "重試", systemImage: "arrow.clockwise") { model.retry() }
+                    GlassButton(title: L("重試"), systemImage: "arrow.clockwise") { model.retry() }
                         .frame(maxWidth: 200)
                 }
                 .padding()
                 .glassCard()
                 .padding(.horizontal)
             } else if model.didLoadOnce && model.items.isEmpty {
-                Text("沒有結果").foregroundStyle(.secondary).padding()
+                Text(L("沒有結果")).foregroundStyle(.secondary).padding()
             }
 
             if model.pagingMode && model.didLoadOnce { pager }
@@ -213,7 +213,7 @@ struct PagedComicList: View {
                 jumpText = ""
                 jumping = true
             } label: {
-                Text(model.totalPages.map { "第 \(model.currentPage) / \($0) 頁" } ?? "第 \(model.currentPage) 頁")
+                Text(model.totalPages.map { L("第 %@ / %@ 頁", "\(model.currentPage)", "\($0)") } ?? L("第 %@ 頁", "\(model.currentPage)"))
                     .font(.footnote.weight(.semibold).monospacedDigit())
             }
             Button { model.nextPageAction() } label: { Image(systemName: "chevron.right").frame(width: 44, height: 40) }
@@ -222,12 +222,12 @@ struct PagedComicList: View {
         .buttonStyle(.plain)
         .padding(.horizontal, 12)
         .glassCapsule(interactive: true)
-        .alert("跳到第幾頁", isPresented: $jumping) {
-            TextField("頁碼", text: $jumpText).keyboardType(.numberPad)
-            Button("前往") {
+        .alert(L("跳到第幾頁"), isPresented: $jumping) {
+            TextField(L("頁碼"), text: $jumpText).keyboardType(.numberPad)
+            Button(L("前往")) {
                 if let page = Int(jumpText), page >= 1 { model.goTo(min(page, model.totalPages ?? page)) }
             }
-            Button("取消", role: .cancel) {}
+            Button(L("取消"), role: .cancel) {}
         }
     }
 }

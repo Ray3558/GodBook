@@ -33,7 +33,7 @@ enum ComicExport {
 
     static func export(_ summary: ComicSummary, as format: ExportFormat) throws -> URL {
         let chapters = chapters(for: summary)
-        guard !chapters.isEmpty else { throw AppError.message("沒有可匯出的內容") }
+        guard !chapters.isEmpty else { throw AppError.message(L("沒有可匯出的內容")) }
         let url = DownloadStorage.exports.appendingPathComponent("\(sanitize(summary.title)).\(format.rawValue)")
         try? FileManager.default.removeItem(at: url)
         switch format {

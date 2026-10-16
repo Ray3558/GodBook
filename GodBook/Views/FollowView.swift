@@ -17,29 +17,29 @@ struct FollowView: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            GlassPanel(title: "追蹤更新") {
-                Picker("追蹤的資料夾", selection: Binding(
+            GlassPanel(title: L("追蹤更新")) {
+                Picker(L("追蹤的資料夾"), selection: Binding(
                     get: { follow.followedFolderID },
                     set: { follow.followedFolderID = $0 })) {
-                    Text("不追蹤").tag(UUID?.none)
+                    Text(L("不追蹤")).tag(UUID?.none)
                     ForEach(favorites.folders) { Text($0.name).tag(Optional($0.id)) }
                 }
                 .pickerStyle(.menu)
 
                 if folder != nil {
-                    GlassButton(title: follow.isChecking ? "檢查中 \(follow.progress.done)/\(follow.progress.total)" : "立即檢查更新",
+                    GlassButton(title: follow.isChecking ? L("檢查中 %@/%@", "\(follow.progress.done)", "\(follow.progress.total)") : L("立即檢查更新"),
                                 systemImage: "arrow.triangle.2.circlepath", prominent: true) {
                         Task { await follow.check(favorites: favorites) }
                     }
                     .disabled(follow.isChecking)
                     if let last = follow.lastCheck {
-                        Text("上次檢查：\(last.formatted(date: .abbreviated, time: .shortened))")
+                        Text(L("上次檢查：%@", "\(last.formatted(date: .abbreviated, time: .shortened))"))
                             .font(.footnote).foregroundStyle(.secondary)
                     }
-                    Text("App 開啟時，距離上次檢查超過 6 小時會自動檢查。第一次檢查只會記錄目前章節數，之後有新章節才會標示。")
+                    Text(L("App 開啟時，距離上次檢查超過 6 小時會自動檢查。第一次檢查只會記錄目前章節數，之後有新章節才會標示。"))
                         .font(.footnote).foregroundStyle(.secondary)
                 } else {
-                    Text("在「收藏」分頁選一個資料夾右上角選單 → 追蹤這個資料夾的更新。").font(.footnote).foregroundStyle(.secondary)
+                    Text(L("在「收藏」分頁選一個資料夾右上角選單 → 追蹤這個資料夾的更新。")).font(.footnote).foregroundStyle(.secondary)
                 }
             }
             .padding(.horizontal, 12)
@@ -56,11 +56,11 @@ struct FollowView: View {
                                 HStack {
                                     Text(item.summary.title).font(.subheadline.weight(.semibold)).lineLimit(2)
                                     if info?.hasUpdate == true {
-                                        Text("新").font(.caption2.weight(.bold)).padding(.horizontal, 6).padding(.vertical, 2)
+                                        Text(L("新")).font(.caption2.weight(.bold)).padding(.horizontal, 6).padding(.vertical, 2)
                                             .background(Color.red, in: Capsule()).foregroundStyle(.white)
                                     }
                                 }
-                                Text(info.map { "最新：\($0.latestTitle.isEmpty ? "—" : $0.latestTitle)（共 \($0.chapterCount) 章）" } ?? "尚未檢查")
+                                Text(info.map { L("最新：%@（共 %@ 章）", "\($0.latestTitle.isEmpty ? "—" : $0.latestTitle)", "\($0.chapterCount)") } ?? L("尚未檢查"))
                                     .font(.caption).foregroundStyle(.secondary).lineLimit(1)
                             }
                             Spacer(minLength: 0)

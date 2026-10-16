@@ -18,8 +18,8 @@ struct SourceKind: Hashable, Codable, Identifiable, RawRepresentable {
 
     var title: String {
         if self == .nhentai { return "nhentai" }
-        if self == .jmcomic { return "禁漫" }
-        if self == .local { return "本機" }
+        if self == .jmcomic { return L("禁漫") }
+        if self == .local { return L("本機") }
         return VeneraRegistry.shared.info(veneraKey)?.name ?? veneraKey
     }
 
@@ -248,7 +248,7 @@ protocol ComicSource {
     func pages(of detail: ComicDetail, chapter: Chapter) async throws -> [ReaderPage]
 }
 
-private let unsupported = AppError.message("這個來源不支援此功能")
+private let unsupported = AppError.message(L("這個來源不支援此功能"))
 
 extension ComicSource {
     var capabilities: SourceCapabilities { SourceCapabilities() }
@@ -290,10 +290,10 @@ enum AppError: LocalizedError {
         switch self {
         case .http(let code):
             switch code {
-            case 403: "存取被拒絕 (403)：可能需要 API Key、換鏡像網域，或網路環境被封鎖"
-            case 404: "找不到內容 (404)"
-            case 429: "請求太頻繁 (429)，請稍後再試"
-            default: "伺服器回應錯誤 (\(code))"
+            case 403: L("存取被拒絕 (403)：可能需要 API Key、換鏡像網域，或網路環境被封鎖")
+            case 404: L("找不到內容 (404)")
+            case 429: L("請求太頻繁 (429)，請稍後再試")
+            default: L("伺服器回應錯誤 (%@)", "\(code)")
             }
         case .message(let text):
             text
