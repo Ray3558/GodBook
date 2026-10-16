@@ -127,6 +127,13 @@ final class JMClient {
                         lastError = AppError.http(response.statusCode)
                         continue
                     }
+                    // 有些網域會回 200 但內容不是 API 的 JSON（維護頁、封鎖頁…）；這種直接換下一個網域
+                    if !scramble && !Self.looksLikeEnvelope(data) {
+                        let snippet = String(String(decoding: data, as: UTF8.self)
+                            .trimmingCharacters(in: .whitespacesAndNewlines).prefix(60))
+                        lastError = AppError.message(L("禁漫：%@ 回傳的不是有效資料：%@", domain, snippet))
+                        break
+                    }
                     lock.lock()
                     preferred = domain
                     preferredProfile = profileIndex
@@ -140,6 +147,13 @@ final class JMClient {
             }
         }
         throw lastError
+    }
+
+    private static func looksLikeEnvelope(_ data: Data) -> Bool {
+        var text = String(decoding: data, as: UTF8.self)
+        if let brace = text.firstIndex(of: "{") { text = String(text[brace...]) } else { return false }
+        guard let object = try? JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any] else { return false }
+        return object["code"] != nil
     }
 
     /// 呼叫並解密 JSON 回應，回傳解密後的 `data`。
