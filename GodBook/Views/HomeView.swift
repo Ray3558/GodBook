@@ -7,7 +7,23 @@ struct HomeView: View {
     @State private var searchText = ""
     @State private var query = ""
     @State private var sortIds: [SourceKind: String] = [:]
+    @State private var filterValues: [SourceKind: [String: String]] = [:]
     @State private var directOpen: ComicSummary?
+    @State private var showFilters = false
+    @State private var showCategories = false
+    @State private var aggregatedQuery: AggregatedRoute?
+    @State private var tagSuggestions: [TagSuggestionRow] = []
+
+    struct AggregatedRoute: Hashable, Identifiable {
+        let query: String
+        var id: String { query }
+    }
+
+    struct TagSuggestionRow: Identifiable, Hashable {
+        let id: String
+        let label: String
+        let completion: String
+    }
 
     private var source: ComicSource { SourceRegistry.source(settings.lastSource) }
 
@@ -15,6 +31,10 @@ struct HomeView: View {
         let options = source.sortOptions
         return options.first { $0.id == sortIds[settings.lastSource] } ?? options[0]
     }
+
+    private var currentFilters: [String: String] { filterValues[settings.lastSource] ?? [:] }
+
+    private var groups: [FilterGroup] { source.filterGroups(query: query) }
 
     /// 只有「目前這個 venera 漫畫源」載入完成時才需要重新抓取；
     /// 其他漫畫源啟動時陸續載入不應觸發重新請求（否則 nhentai 會因請求過多回 429）。
@@ -29,6 +49,9 @@ struct HomeView: View {
         var query: String
         var sort: String
         var catalog: Int
+        var filters: [String: String]
+        var paging: Bool
+        var blocked: [String]
     }
 
     var body: some View {
@@ -52,20 +75,44 @@ struct HomeView: View {
         }
         .navigationTitle("GodBook")
         .navigationBarTitleDisplayMode(.inline)
-        .searchable(text: $searchText, prompt: settings.lastSource == .nhentai ? "搜尋標籤、關鍵字或 ID" : "搜尋關鍵字")
+        .searchable(text: $searchText, prompt: settings.lastSource == .nhentai ? "搜尋標籤、關鍵字或 ID" : "搜尋關鍵字") {
+            suggestionContent
+        }
         .onSubmit(of: .search) { submitSearch() }
         .onChange(of: searchText) { _, newValue in
             if newValue.isEmpty && !query.isEmpty { query = "" }
         }
+        .task(id: "\(searchText)|\(settings.lastSource.rawValue)") { await updateTagSuggestions() }
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                SortMenu(options: source.sortOptions, selection: currentSort.id) {
-                    sortIds[settings.lastSource] = $0
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                if !groups.isEmpty {
+                    Button { showFilters = true } label: {
+                        Image(systemName: currentFilters.isEmpty ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
+                    }
+                }
+                if !source.categorySections().isEmpty {
+                    Button { showCategories = true } label: { Image(systemName: "square.grid.3x3") }
+                }
+                Button { aggregatedQuery = AggregatedRoute(query: searchText.trimmingCharacters(in: .whitespaces)) } label: {
+                    Image(systemName: "magnifyingglass.circle")
+                }
+                if source.sortOptions.count > 1 {
+                    SortMenu(options: source.sortOptions, selection: currentSort.id) {
+                        sortIds[settings.lastSource] = $0
+                    }
                 }
             }
         }
+        .sheet(isPresented: $showFilters) {
+            FilterSheet(groups: groups, values: Binding(
+                get: { filterValues[settings.lastSource] ?? [:] },
+                set: { filterValues[settings.lastSource] = $0 }))
+        }
+        .navigationDestination(isPresented: $showCategories) { CategoriesView(source: settings.lastSource) }
+        .navigationDestination(item: $aggregatedQuery) { AggregatedSearchView(query: $0.query) }
         .navigationDestination(item: $directOpen) { DetailView(summary: $0) }
-        .task(id: LoadKey(source: settings.lastSource, query: query, sort: currentSort.id, catalog: catalogState)) {
+        .task(id: LoadKey(source: settings.lastSource, query: query, sort: currentSort.id, catalog: catalogState,
+                          filters: currentFilters, paging: settings.listPaging, blocked: settings.blockedWords)) {
             // 目前來源被停用時不送出請求，改切到第一個啟用的來源
             guard settings.isEnabled(settings.lastSource) else {
                 if let first = settings.enabledSources.first { settings.lastSource = first }
@@ -74,11 +121,13 @@ struct HomeView: View {
             let source = self.source
             let sort = currentSort
             let query = self.query
-            await model.start { try await source.browse(query: query, page: $0, sort: sort) }
+            let filters = currentFilters
+            await model.start(paging: settings.listPaging) { try await source.browse(query: query, page: $0, sort: sort, filters: filters) }
         }
     }
 
-    /// 來源切換列：內建兩個來源 + 已安裝的 venera 漫畫源
+    // MARK: 來源切換列
+
     private var sourceChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
@@ -100,16 +149,74 @@ struct HomeView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 6)
         }
-        .id(venera.sources.count * 1000 + settings.disabledSources.count) // 安裝 / 移除 / 停用後重新整理
+        .id(venera.sources.count * 1000 + settings.disabledSources.count + settings.sourceOrder.count) // 安裝 / 移除 / 停用 / 排序後重新整理
+    }
+
+    // MARK: 搜尋
+
+    @ViewBuilder
+    private var suggestionContent: some View {
+        let text = searchText.trimmingCharacters(in: .whitespaces)
+        if text.isEmpty {
+            ForEach(settings.searchHistory.prefix(8), id: \.self) { item in
+                Label(item, systemImage: "clock.arrow.circlepath").searchCompletion(item)
+            }
+        } else {
+            ForEach(tagSuggestions) { row in
+                Label(row.label, systemImage: "tag").searchCompletion(row.completion)
+            }
+            ForEach(settings.searchHistory.filter { $0.localizedCaseInsensitiveContains(text) && $0 != text }.prefix(4), id: \.self) { item in
+                Label(item, systemImage: "clock.arrow.circlepath").searchCompletion(item)
+            }
+        }
+    }
+
+    private func updateTagSuggestions() async {
+        guard source.supportsTagSuggestions else { tagSuggestions = []; return }
+        let tokens = searchText.split(separator: " ", omittingEmptySubsequences: false).map(String.init)
+        guard let last = tokens.last, last.count >= 1, !last.contains(":") else { tagSuggestions = []; return }
+        try? await Task.sleep(nanoseconds: 150_000_000) // 輸入防抖
+        guard !Task.isCancelled else { return }
+
+        let prefix = tokens.dropLast().joined(separator: " ")
+        let matches = TagTranslator.shared.search(last)
+        let kind = settings.lastSource
+        var rows: [TagSuggestionRow] = []
+        for match in matches {
+            let insertion: String
+            if kind.isVenera {
+                insertion = await (source as? VeneraSource)?.tagSuggestionText(namespace: match.namespace, tag: match.name)
+                    ?? "\(match.namespace):\(match.name)"
+            } else {
+                let type = ["female", "male", "mixed", "other"].contains(match.namespace) ? "tag" : match.namespace
+                insertion = "\(type):\"\(match.name)\""
+            }
+            let completion = prefix.isEmpty ? insertion : "\(prefix) \(insertion)"
+            rows.append(TagSuggestionRow(id: match.id, label: "\(match.translation)（\(match.name)）", completion: completion))
+        }
+        guard !Task.isCancelled else { return }
+        tagSuggestions = rows
     }
 
     private func submitSearch() {
         let text = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        remember(text)
+        if settings.defaultSearchTarget == "aggregated" {
+            aggregatedQuery = AggregatedRoute(query: text)
+            return
+        }
         // nhentai 的純數字視為 gallery ID，直接開啟
-        if settings.lastSource == .nhentai, !text.isEmpty, text.allSatisfy(\.isNumber) {
+        if settings.lastSource == .nhentai, text.allSatisfy(\.isNumber) {
             directOpen = ComicSummary(source: .nhentai, sid: text, title: "#\(text)")
             return
         }
         query = text
+    }
+
+    private func remember(_ text: String) {
+        var list = settings.searchHistory.filter { $0 != text }
+        list.insert(text, at: 0)
+        settings.searchHistory = Array(list.prefix(30))
     }
 }

@@ -227,7 +227,18 @@ struct JMComicSource: ComicSource {
 
     // MARK: ComicSource
 
-    func browse(query: String, page: Int, sort: SortOption) async throws -> ComicPageResult {
+    func filterGroups(query: String) -> [FilterGroup] {
+        guard query.trimmingCharacters(in: .whitespaces).isEmpty else { return [] }
+        return [FilterGroup(id: "c", title: "分類", kind: .select, options: [
+            FilterOption(value: "0", title: "全部"), FilterOption(value: "doujin", title: "同人"),
+            FilterOption(value: "single", title: "單本"), FilterOption(value: "short", title: "短篇"),
+            FilterOption(value: "another", title: "其他"), FilterOption(value: "hanman", title: "韓漫"),
+            FilterOption(value: "meiman", title: "美漫"), FilterOption(value: "doujin_cosplay", title: "Cosplay"),
+            FilterOption(value: "3D", title: "3D"), FilterOption(value: "english_site", title: "英文站"),
+        ], defaultValue: "0")]
+    }
+
+    func browse(query: String, page: Int, sort: SortOption, filters: [String: String]) async throws -> ComicPageResult {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         let result: [String: Any]
         if trimmed.isEmpty {
@@ -235,7 +246,7 @@ struct JMComicSource: ComicSource {
             result = try await client.json("/categories/filter", query: [
                 URLQueryItem(name: "page", value: String(page)),
                 URLQueryItem(name: "order", value: ""),
-                URLQueryItem(name: "c", value: "0"),
+                URLQueryItem(name: "c", value: filters["c"] ?? "0"),
                 URLQueryItem(name: "o", value: order),
             ])
         } else {

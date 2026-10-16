@@ -24,6 +24,7 @@ struct SettingsView: View {
                 nhentaiCard
                 jmCard
                 readerCard
+                browseCard
                 advancedCard
                 downloadCard
                 aboutCard
@@ -213,6 +214,12 @@ struct SettingsView: View {
     private var readerCard: some View {
         SettingsCard(title: "閱讀", systemImage: "book.fill") {
             link("閱讀設定（模式、手勢、縮放、音量鍵…）", systemImage: "slider.horizontal.below.rectangle") { ReaderSettingsPage() }
+        }
+    }
+
+    private var browseCard: some View {
+        SettingsCard(title: "瀏覽", systemImage: "square.grid.2x2.fill") {
+            link("列表、搜尋、屏蔽、啟動頁面", systemImage: "slider.vertical.3") { BrowseSettingsView() }
         }
     }
 

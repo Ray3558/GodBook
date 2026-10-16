@@ -14,7 +14,7 @@ struct VeneraInfo: Codable, Identifiable {
         let options: [[String]]; let def: String?
     }
     struct Ranking: Codable { let options: [[String]] }
-    struct Search: Codable { let options: [Option]; let hasLoad: Bool }
+    struct Search: Codable { let options: [Option]; let hasLoad: Bool; let enableTags: Bool? }
     struct Favorites: Codable { let multiFolder: Bool }
     struct Account: Codable {
         let hasLogin: Bool; let webviewUrl: String?
@@ -44,6 +44,21 @@ struct VeneraInfo: Codable, Identifiable {
 
     var id: String { key }
     var kind: SourceKind { SourceKind(rawValue: "v:" + key) }
+}
+
+/// 使用者在「來源管理」關掉的頁面（探索頁 / 分類區塊 / 排行）
+enum VeneraVisibility {
+    private static func key(_ source: String) -> String { "src.hidden.\(source)" }
+
+    static func hidden(_ source: String) -> Set<String> {
+        Set(UserDefaults.standard.stringArray(forKey: key(source)) ?? [])
+    }
+
+    static func setHidden(_ source: String, _ item: String, _ isHidden: Bool) {
+        var set = hidden(source)
+        if isHidden { set.insert(item) } else { set.remove(item) }
+        UserDefaults.standard.set(Array(set), forKey: key(source))
+    }
 }
 
 /// 已安裝漫畫源的執行緒安全快取（供非 UI 程式碼讀取）。

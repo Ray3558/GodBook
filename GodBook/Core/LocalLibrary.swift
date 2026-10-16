@@ -225,7 +225,7 @@ struct LocalSource: ComicSource {
     let kind = SourceKind.local
     let sortOptions = [SortOption(id: "all", title: "全部")]
 
-    func browse(query: String, page: Int, sort: SortOption) async throws -> ComicPageResult {
+    func browse(query: String, page: Int, sort: SortOption, filters: [String: String]) async throws -> ComicPageResult {
         let all = LocalLibrary.loadList()
         let filtered = query.isEmpty ? all : all.filter { $0.title.localizedCaseInsensitiveContains(query) }
         return ComicPageResult(items: filtered, total: filtered.count, totalPages: 1)

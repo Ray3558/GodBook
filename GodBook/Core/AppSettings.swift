@@ -33,6 +33,20 @@ final class AppSettings: ObservableObject {
     @Stored("src.autoUpdate", true) var autoUpdateSources: Bool
     @Stored("webdav.autoUpload", false) var webdavAutoUpload: Bool
 
+    // MARK: 瀏覽與列表
+    @Stored("list.display", "card") var listDisplay: String               // card | brief | detailed
+    @Stored("list.scale", 1.0) var listScale: Double                      // 0.75 – 1.25
+    @Stored("list.paging", false) var listPaging: Bool                    // true = 分頁、false = 連續捲動
+    @Stored("list.autoLang", "none") var autoLanguage: String             // none | chinese | english | japanese
+    @Stored("list.showStatus", true) var showTileStatus: Bool
+    @Stored("list.blocked", [String]()) var blockedWords: [String]
+    @Stored("list.blockedComments", [String]()) var blockedCommentWords: [String]
+    @Stored("ui.initialTab", 0) var initialTab: Int                       // 0 探索、1 書庫、2 設定
+    @Stored("ui.reverseChapters", false) var reverseChapters: Bool
+    @Stored("search.defaultTarget", "current") var defaultSearchTarget: String // current | aggregated
+    @Stored("search.history", [String]()) var searchHistory: [String]
+    @Stored("ui.sourceOrder", [String]()) var sourceOrder: [String]
+
     var jmLoggedIn: Bool { !jmAVS.isEmpty }
 
     /// 目前啟用的來源（依序：nhentai、禁漫、已安裝的 venera 漫畫源）

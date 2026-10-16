@@ -31,49 +31,106 @@ struct VeneraSource: ComicSource {
 
     // MARK: 排序 / 分區
 
+    var supportsTagSuggestions: Bool { info?.search?.enableTags == true }
+
+    private var hidden: Set<String> { VeneraVisibility.hidden(key) }
+
     var sortOptions: [SortOption] {
         guard let info else { return [SortOption(id: "none", title: "—")] }
         var options: [SortOption] = []
-        for (index, page) in info.explore.enumerated() {
+        for (index, page) in info.explore.enumerated() where !hidden.contains("explore:\(page.title)") {
             options.append(SortOption(id: "explore:\(index)", title: page.title, section: "探索"))
-        }
-        if let category = info.category {
-            for (partIndex, part) in category.parts.enumerated() {
-                for (itemIndex, item) in part.items.enumerated() {
-                    options.append(SortOption(id: "cat:\(partIndex):\(itemIndex)", title: item.label,
-                                              section: part.name.isEmpty ? category.title : part.name))
-                }
-            }
-        }
-        for pair in info.ranking?.options ?? [] where pair.count == 2 {
-            options.append(SortOption(id: "rank:\(pair[0])", title: pair[1], section: "排行"))
-        }
-        if let first = info.search?.options.first, first.type == "select" {
-            for pair in first.options where pair.count == 2 {
-                options.append(SortOption(id: "search:\(pair[0])", title: pair[1], section: first.label.isEmpty ? "搜尋排序" : first.label))
-            }
         }
         return options.isEmpty ? [SortOption(id: "none", title: "—")] : options
     }
 
+    func categorySections() -> [CategorySection] {
+        guard let info else { return [] }
+        var sections: [CategorySection] = []
+        if let category = info.category {
+            for part in category.parts where !hidden.contains("cat:\(part.name)") {
+                let entries = part.items.map { item -> CategoryEntry in
+                    if item.kind == "search" { return CategoryEntry(title: item.label, query: item.text ?? item.label) }
+                    return CategoryEntry(title: item.label, query: VeneraQuery.category(item.category ?? item.label, item.param))
+                }
+                if !entries.isEmpty { sections.append(CategorySection(title: part.name.isEmpty ? category.title : part.name, entries: entries)) }
+            }
+        }
+        if let ranking = info.ranking, !hidden.contains("rank") {
+            let entries = ranking.options.compactMap { pair -> CategoryEntry? in
+                pair.count == 2 ? CategoryEntry(title: pair[1], query: VeneraQuery.rank(pair[0])) : nil
+            }
+            if !entries.isEmpty { sections.append(CategorySection(title: "排行", entries: entries)) }
+        }
+        return sections
+    }
+
+    /// 選中標籤建議後要插入搜尋框的文字（腳本可自訂格式）
+    func tagSuggestionText(namespace: String, tag: String) async -> String {
+        let value = try? await runtime.callValue(key, "__tagSuggestion", [namespace, tag])
+        return (value as? String) ?? "\(namespace):\(tag)"
+    }
+
     // MARK: 瀏覽
 
-    func browse(query: String, page: Int, sort: SortOption) async throws -> ComicPageResult {
+    func filterGroups(query: String) -> [FilterGroup] {
+        guard let info else { return [] }
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        if VeneraQuery.decodeCategory(trimmed) != nil {
+            return groups(from: info.categoryOptions, prefix: "c")
+        }
+        if VeneraQuery.decodeRank(trimmed) != nil || trimmed.isEmpty { return [] }
+        return groups(from: info.search?.options ?? [], prefix: "s")
+    }
+
+    private func groups(from options: [VeneraInfo.Option], prefix: String) -> [FilterGroup] {
+        options.enumerated().compactMap { index, option in
+            let choices = option.options.compactMap { pair -> FilterOption? in
+                pair.count == 2 ? FilterOption(value: pair[0], title: pair[1]) : nil
+            }
+            guard !choices.isEmpty else { return nil }
+            let kind: FilterGroup.Kind = option.type == "multi-select" ? .multi : (option.type == "dropdown" ? .dropdown : .select)
+            return FilterGroup(id: "\(prefix)\(index)", title: option.label.isEmpty ? "選項 \(index + 1)" : option.label,
+                               kind: kind, options: choices, defaultValue: option.def)
+        }
+    }
+
+    /// 依使用者在篩選面板的選擇組出傳給腳本的 options 陣列
+    private func options(_ list: [VeneraInfo.Option], prefix: String, filters: [String: String]) -> [String?] {
+        let defaults = defaultOptions(list)
+        return list.enumerated().map { index, _ in
+            if let chosen = filters["\(prefix)\(index)"] { return chosen.isEmpty ? nil : chosen }
+            return defaults[index]
+        }
+    }
+
+    func browse(query: String, page: Int, sort: SortOption, filters: [String: String]) async throws -> ComicPageResult {
         guard let info else { throw AppError.message("漫畫源尚未載入") }
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
 
         if let (category, param) = VeneraQuery.decodeCategory(trimmed) {
-            let result = try await invoke( "__category", [category, param, defaultCategoryOptions(info), page])
+            let result = try await invoke("__category", [category, param, options(info.categoryOptions, prefix: "c", filters: filters), page])
+            return decodePage(result, page: page)
+        }
+
+        if let option = VeneraQuery.decodeRank(trimmed) {
+            let result = try await invoke("__ranking", [option, page, tokens.next[page]])
             return decodePage(result, page: page)
         }
 
         if !trimmed.isEmpty {
             guard let search = info.search else { throw AppError.message("這個漫畫源不支援搜尋") }
-            var options = defaultOptions(search.options)
-            if sort.id.hasPrefix("search:"), !options.isEmpty {
-                options[0] = String(sort.id.dropFirst("search:".count))
+            var keyword = trimmed
+            // 與 venera 相同：只對 nhentai / ehentai 自動加語言條件
+            let language = filters["lang"] ?? AppSettings.shared.autoLanguage
+            if ["nhentai", "ehentai"].contains(key), language != "none", !keyword.contains("language:") {
+                keyword += " language:\(language)"
             }
-            let result = try await invoke( "__search", [trimmed, options, page, tokens.next[page]])
+            var chosen = options(search.options, prefix: "s", filters: filters)
+            if sort.id.hasPrefix("search:"), !chosen.isEmpty, filters["s0"] == nil {
+                chosen[0] = String(sort.id.dropFirst("search:".count))
+            }
+            let result = try await invoke("__search", [keyword, chosen, page, tokens.next[page]])
             return decodePage(result, page: page)
         }
 
@@ -86,9 +143,9 @@ struct VeneraSource: ComicSource {
             let item = info.category?.parts[safe: Int(parts[safe: 1] ?? "") ?? 0]?.items[safe: Int(parts[safe: 2] ?? "") ?? 0]
             guard let item else { throw AppError.message("分類不存在") }
             if item.kind == "search" {
-                return try await browse(query: item.text ?? item.label, page: page, sort: SortOption(id: "none", title: ""))
+                return try await browse(query: item.text ?? item.label, page: page, sort: SortOption(id: "none", title: ""), filters: filters)
             }
-            let result = try await invoke( "__category", [item.category ?? item.label, item.param, defaultCategoryOptions(info), page])
+            let result = try await invoke("__category", [item.category ?? item.label, item.param, options(info.categoryOptions, prefix: "c", filters: filters), page])
             return decodePage(result, page: page)
         case "rank":
             let result = try await invoke( "__ranking", [parts.dropFirst().joined(separator: ":"), page, tokens.next[page]])
@@ -192,7 +249,8 @@ struct VeneraSource: ComicSource {
         }
         return ComicSummary(source: kind, sid: id, title: (item["title"] as? String) ?? id,
                             coverURL: (item["cover"] as? String).flatMap(VeneraURL.make),
-                            subtitle: subtitle.isEmpty ? nil : subtitle)
+                            subtitle: subtitle.isEmpty ? nil : subtitle,
+                            tags: (item["tags"] as? [String]))
     }
 
     private func decodePage(_ result: [String: Any], page: Int) -> ComicPageResult {
@@ -238,6 +296,14 @@ enum VeneraQuery {
 
     static func category(_ name: String, _ param: String?) -> String {
         prefix + name + "\u{1}" + (param ?? "")
+    }
+
+    private static let rankPrefix = "\u{1}rank\u{1}"
+
+    static func rank(_ option: String) -> String { rankPrefix + option }
+
+    static func decodeRank(_ query: String) -> String? {
+        query.hasPrefix(rankPrefix) ? String(query.dropFirst(rankPrefix.count)) : nil
     }
 
     static func decodeCategory(_ query: String) -> (String, String?)? {

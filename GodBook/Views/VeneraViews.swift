@@ -67,6 +67,14 @@ struct VeneraSourcesView: View {
                     }
                 }
 
+                Panel(title: "排序") {
+                    NavigationLink { SourceOrderView() } label: {
+                        HStack { Text("調整首頁來源順序"); Spacer(); Image(systemName: "chevron.right").font(.caption) }
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+
                 Panel(title: "更新") {
                     Toggle("啟動時自動更新漫畫源", isOn: $settings.autoUpdateSources)
                     TextField("索引網址 (index.json)", text: $settings.sourceListURL)
@@ -245,6 +253,7 @@ struct VeneraSourceDetailView: View {
     @State private var busy = false
     @State private var showWeb = false
     @State private var confirmRemove = false
+    @State private var hiddenRefresh = 0
 
     private var info: VeneraInfo? { store.isInstalled(key) }
 
@@ -262,6 +271,8 @@ struct VeneraSourceDetailView: View {
                             if info.favorites != nil { badge("收藏") }
                         }
                     }
+
+                    pagesPanel(info)
 
                     if let accountInfo = info.account { accountPanel(info, accountInfo) }
 
@@ -293,6 +304,26 @@ struct VeneraSourceDetailView: View {
                 VeneraWebLoginSheet(key: key, url: url) { logged = true }
             }
         }
+    }
+
+    /// 要在首頁顯示哪些探索頁 / 分類區塊 / 排行
+    @ViewBuilder
+    private func pagesPanel(_ info: VeneraInfo) -> some View {
+        let parts = info.category?.parts.map(\.name).filter { !$0.isEmpty } ?? []
+        if !info.explore.isEmpty || !parts.isEmpty || info.ranking != nil {
+            Panel(title: "顯示的頁面") {
+                ForEach(info.explore.map(\.title), id: \.self) { title in pageToggle("探索：\(title)", item: "explore:\(title)") }
+                ForEach(parts, id: \.self) { name in pageToggle("分類：\(name)", item: "cat:\(name)") }
+                if info.ranking != nil { pageToggle("排行", item: "rank") }
+            }
+        }
+    }
+
+    private func pageToggle(_ title: String, item: String) -> some View {
+        Toggle(title, isOn: Binding(
+            get: { !VeneraVisibility.hidden(key).contains(item) },
+            set: { VeneraVisibility.setHidden(key, item, !$0); hiddenRefresh += 1 }))
+            .id(hiddenRefresh)
     }
 
     private func badge(_ text: String) -> some View {

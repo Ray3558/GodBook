@@ -558,7 +558,7 @@ function __describe(key) {
     }
   }
   if (s.search) {
-    info.search = { options: __optList(s.search.optionList), hasLoad: typeof s.search.load === 'function' };
+    info.search = { options: __optList(s.search.optionList), hasLoad: typeof s.search.load === 'function', enableTags: !!s.search.enableTagsSuggestions };
   }
   if (s.favorites) {
     info.favorites = { multiFolder: !!s.favorites.multiFolder };
@@ -585,6 +585,12 @@ function __describe(key) {
   }
   if (s.comic && s.comic.idMatch) info.idMatch = String(s.comic.idMatch);
   return info;
+}
+
+function __tagSuggestion(key, ns, tag) {
+  var s = ComicSource.sources[key];
+  if (s.search && typeof s.search.onTagSuggestionSelected === 'function') return s.search.onTagSuggestionSelected(ns, tag);
+  return ns + ':' + tag;
 }
 
 function __normComic(c) {

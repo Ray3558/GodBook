@@ -25,7 +25,13 @@ struct SourceKind: Hashable, Codable, Identifiable, RawRepresentable {
 
     /// 所有可用來源（內建 + 已安裝的 venera 漫畫源）
     static var all: [SourceKind] {
-        [.nhentai, .jmcomic] + VeneraRegistry.shared.all.map(\.kind)
+        let natural = [.nhentai, .jmcomic] + VeneraRegistry.shared.all.map(\.kind)
+        let order = UserDefaults.standard.stringArray(forKey: "ui.sourceOrder") ?? []
+        guard !order.isEmpty else { return natural }
+        // 依使用者自訂順序排列；沒出現在順序中的（新安裝的）排在最後
+        return natural.sorted {
+            (order.firstIndex(of: $0.rawValue) ?? Int.max) < (order.firstIndex(of: $1.rawValue) ?? Int.max)
+        }
     }
 
     init(from decoder: Decoder) throws {
@@ -53,6 +59,8 @@ struct ComicSummary: Identifiable, Hashable, Codable {
     var title: String
     var coverURL: URL?
     var subtitle: String?
+    /// 來源提供的標籤（用於顯示與關鍵字屏蔽）；不一定有
+    var tags: [String]? = nil
 
     var id: String { "\(source.rawValue):\(sid)" }
 }
@@ -113,12 +121,67 @@ struct SearchRoute: Hashable {
     var title: String
 }
 
+struct FilterOption: Hashable {
+    let value: String
+    let title: String
+}
+
+/// 搜尋 / 分類的篩選條件群組（例如排序、語言、分類）。
+struct FilterGroup: Identifiable, Hashable {
+    enum Kind { case select, multi, dropdown }
+    let id: String
+    let title: String
+    var kind = Kind.select
+    let options: [FilterOption]
+    var defaultValue: String?
+
+    /// 使用者沒選時的有效值（nil 代表「不限」）
+    func effective(_ values: [String: String]) -> String? {
+        if let value = values[id] { return value }
+        if let defaultValue { return defaultValue }
+        switch kind {
+        case .select: return options.first?.value
+        case .multi: return "[]"
+        case .dropdown: return nil
+        }
+    }
+}
+
+struct CategoryEntry: Identifiable, Hashable {
+    let title: String
+    /// 點擊後以這個字串做 browse（搜尋文字，或 venera 的分類 / 排行編碼）
+    let query: String
+    var id: String { title + "|" + query }
+}
+
+struct CategorySection: Identifiable, Hashable {
+    let title: String
+    let entries: [CategoryEntry]
+    var id: String { title }
+}
+
 protocol ComicSource {
     var kind: SourceKind { get }
     var sortOptions: [SortOption] { get }
-    func browse(query: String, page: Int, sort: SortOption) async throws -> ComicPageResult
+    /// 分類 / 排行頁的內容；沒有則為空
+    func categorySections() -> [CategorySection]
+    /// 此來源是否提供標籤建議（搜尋框輸入時）
+    var supportsTagSuggestions: Bool { get }
+    /// 目前（依搜尋字串）可用的篩選條件；預設沒有
+    func filterGroups(query: String) -> [FilterGroup]
+    func browse(query: String, page: Int, sort: SortOption, filters: [String: String]) async throws -> ComicPageResult
     func detail(of summary: ComicSummary) async throws -> ComicDetail
     func pages(of detail: ComicDetail, chapter: Chapter) async throws -> [ReaderPage]
+}
+
+extension ComicSource {
+    func filterGroups(query: String) -> [FilterGroup] { [] }
+    func categorySections() -> [CategorySection] { [] }
+    var supportsTagSuggestions: Bool { false }
+
+    func browse(query: String, page: Int, sort: SortOption) async throws -> ComicPageResult {
+        try await browse(query: query, page: page, sort: sort, filters: [:])
+    }
 }
 
 enum SourceRegistry {

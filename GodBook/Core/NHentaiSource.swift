@@ -58,8 +58,21 @@ struct NHentaiSource: ComicSource {
 
     // MARK: ComicSource
 
-    func browse(query: String, page: Int, sort: SortOption) async throws -> ComicPageResult {
-        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+    var supportsTagSuggestions: Bool { true }
+
+    func filterGroups(query: String) -> [FilterGroup] {
+        [FilterGroup(id: "lang", title: "語言", kind: .select,
+                     options: [FilterOption(value: "none", title: "不限"), FilterOption(value: "chinese", title: "中文"),
+                               FilterOption(value: "english", title: "英文"), FilterOption(value: "japanese", title: "日文")],
+                     defaultValue: AppSettings.shared.autoLanguage)]
+    }
+
+    func browse(query: String, page: Int, sort: SortOption, filters: [String: String]) async throws -> ComicPageResult {
+        var trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let language = filters["lang"] ?? AppSettings.shared.autoLanguage
+        if language != "none", !language.isEmpty, !trimmed.contains("language:") {
+            trimmed = (trimmed + " language:\(language)").trimmingCharacters(in: .whitespaces)
+        }
         var items = [URLQueryItem(name: "page", value: String(page))]
         let path: String
         if trimmed.isEmpty && sort.order.isEmpty {

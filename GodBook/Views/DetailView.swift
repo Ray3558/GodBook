@@ -17,6 +17,7 @@ struct DetailView: View {
     @EnvironmentObject private var favorites: FavoritesStore
     @EnvironmentObject private var follow: FollowStore
     @State private var showFavoriteSheet = false
+    @State private var reverseOrder = AppSettings.shared.reverseChapters
     @EnvironmentObject private var imageFavorites: ImageFavoritesStore
     @State private var detail: ComicDetail?
     @State private var isOffline = false
@@ -222,9 +223,16 @@ struct DetailView: View {
 
     private func chapterSection(_ detail: ComicDetail) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("章節（\(detail.chapters.count)）").font(.headline)
+            HStack {
+                Text("章節（\(detail.chapters.count)）").font(.headline)
+                Spacer()
+                Button { withAnimation { reverseOrder.toggle() } } label: {
+                    Label(reverseOrder ? "倒序" : "正序", systemImage: "arrow.up.arrow.down").font(.caption)
+                }
+            }
             LazyVStack(spacing: 8) {
-                ForEach(Array(detail.chapters.enumerated()), id: \.element.id) { index, chapter in
+                let entries = Array(detail.chapters.enumerated())
+                ForEach(reverseOrder ? Array(entries.reversed()) : entries, id: \.element.id) { index, chapter in
                     HStack(spacing: 12) {
                         Button {
                             reader = ReaderRoute(detail: detail, chapterIndex: index, startPage: 0)
