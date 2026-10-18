@@ -127,6 +127,7 @@ GodBook/
 | `AADSTS53000` / `53003` | 被條件式存取擋下，見上方商業版說明 |
 | Google `Error 403: access_denied` | 應用程式還在「測試中」，而且這個帳號不在測試使用者名單 |
 | Google 每週都要重新登入 | 發布狀態仍是「測試中」，改為「實際運作中」 |
+| Google `Error 400: invalid_request`（不允許自訂 URI 配置） | 到該 iOS 用戶端的「進階設定」勾選「啟用自訂 URI 配置」 |
 
 ## 限制
 
