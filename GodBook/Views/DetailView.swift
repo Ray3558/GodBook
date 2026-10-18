@@ -116,7 +116,10 @@ struct DetailView: View {
         let resumeIndex = progress.flatMap { entry in detail.chapters.firstIndex { $0.id == entry.chapterId } }
         return VStack(spacing: 12) {
             readButtons(detail, progress: progress, resumeIndex: resumeIndex)
-            if !shown.source.isLocal { downloadAllButton(detail) }
+            if !shown.source.isLocal {
+                downloadAllButton(detail)
+                cloudActions(detail)
+            }
             if isOffline {
                 Label(L("離線模式：顯示已下載的內容"), systemImage: "wifi.slash")
                     .font(.caption).foregroundStyle(.secondary)
@@ -145,9 +148,15 @@ struct DetailView: View {
         let states = detail.chapters.map { downloads.item(detail.summary, $0) }
         let finished = states.filter { $0?.state == .finished }.count
         let active = states.compactMap { $0 }.filter { $0.state == .downloading || $0.state == .queued }
+        // 還沒下載、也不在雲端的章節（已在雲端的改由下方「從雲端下載回本機」取回）
+        let missing = detail.chapters.filter {
+            downloads.item(detail.summary, $0) == nil && cloud.record(DownloadItem.makeID(detail.summary, $0)) == nil
+        }
+        let backedUp = detail.chapters.allSatisfy { cloud.record(DownloadItem.makeID(detail.summary, $0)) != nil }
         return Group {
             if finished == detail.chapters.count {
-                GlassButton(title: L("已下載（點此刪除）"), systemImage: "checkmark.circle.fill") {
+                GlassButton(title: backedUp ? L("已下載・雲端已備份（點此刪除本機）") : L("已下載（點此刪除）"),
+                            systemImage: backedUp ? "checkmark.icloud.fill" : "checkmark.circle.fill") {
                     downloads.removeComic(detail.summary)
                 }
             } else if !active.isEmpty {
@@ -161,13 +170,52 @@ struct DetailView: View {
                     downloads.resumeAll(of: detail.summary)
                     downloads.enqueue(detail: detail, chapters: detail.chapters)
                 }
-            } else {
+            } else if !missing.isEmpty {
                 GlassButton(title: detail.chapters.count > 1 ? L("下載全部章節") : L("下載"), systemImage: "arrow.down.circle") {
-                    downloads.enqueue(detail: detail, chapters: detail.chapters)
+                    downloads.enqueue(detail: detail, chapters: missing)
                 }
             }
         }
         .disabled(isOffline && finished != detail.chapters.count)
+    }
+
+    /// 雲端狀態與操作（單行本沒有章節列表，雲端狀態只能在這裡看到）
+    @ViewBuilder
+    private func cloudActions(_ detail: ComicDetail) -> some View {
+        let status = cloud.status(for: detail.summary)
+        if status.uploaded > 0 || status.active || (cloud.target != nil && status.notUploaded > 0) {
+            VStack(alignment: .leading, spacing: 8) {
+                Label(cloudSummary(status, chapterCount: detail.chapters.count),
+                      systemImage: status.active ? "arrow.triangle.2.circlepath.icloud" : (status.uploaded > 0 ? "checkmark.icloud" : "icloud.slash"))
+                    .font(.caption).foregroundStyle(.secondary)
+                if let error = status.failed {
+                    Text(error).font(.caption2).foregroundStyle(.red).lineLimit(3)
+                }
+                if !status.active {
+                    if cloud.target != nil, status.notUploaded > 0 {
+                        GlassButton(title: L("上傳到雲端"), systemImage: "icloud.and.arrow.up") { cloud.enqueue(comic: detail.summary) }
+                    }
+                    if status.cloudOnly > 0 {
+                        GlassButton(title: L("從雲端下載回本機"), systemImage: "icloud.and.arrow.down") {
+                            Task { await cloud.restoreLocal(detail.summary) }
+                        }
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func cloudSummary(_ status: CloudComicStatus, chapterCount: Int) -> String {
+        if status.active { return L("雲端同步中…") }
+        if chapterCount <= 1 {
+            if status.cloudOnly > 0 { return L("只在雲端（本機已釋放空間）") }
+            return status.uploaded > 0 ? L("已備份到雲端") : L("尚未上傳到雲端")
+        }
+        var parts = [L("雲端 %@ 話", "\(status.uploaded)")]
+        if status.cloudOnly > 0 { parts.append(L("%@ 話僅雲端", "\(status.cloudOnly)")) }
+        if status.notUploaded > 0 { parts.append(L("%@ 話未上傳", "\(status.notUploaded)")) }
+        return parts.joined(separator: " · ")
     }
 
     @ViewBuilder

@@ -546,3 +546,8 @@
 "雲端資料夾" = "Cloud folder";
 "目前位置：%@。可用 / 建立多層資料夾，例如「漫畫/GodBook」。已上傳的章節會留在原本的資料夾並照常讀取，之後上傳的才會放到新資料夾；Google Drive 只看得到 GodBook 自己建立的資料夾。" = "Current location: %@. Use / for nested folders, e.g. \"Comics/GodBook\". Chapters already uploaded stay in their original folder and can still be read; new uploads go to the new folder. On Google Drive, GodBook can only see folders it created itself.";
 "使用「快取、備份與 WebDAV」中填寫的伺服器與帳號，章節會放在該網址底下的雲端資料夾。" = "Uses the server and account from Cache, Backup & WebDAV. Chapters are stored in the cloud folder under that URL.";
+"已下載・雲端已備份（點此刪除本機）" = "Downloaded · backed up to cloud (tap to delete from device)";
+"雲端同步中…" = "Syncing with cloud…";
+"只在雲端（本機已釋放空間）" = "Cloud only (removed from device)";
+"已備份到雲端" = "Backed up to cloud";
+"尚未上傳到雲端" = "Not uploaded to cloud yet";
