@@ -9,6 +9,7 @@ struct CloudSettingsView: View {
     @State private var message: String?
     @State private var cacheSize: Int64 = 0
     @State private var freeSpace: Int64 = 0
+    @State private var folderDraft = CloudSettings.shared.rootFolder
 
     private let cacheLimits = [256, 512, 1024, 2048, 4096]
     private static let guideURL = URL(string: "https://github.com/Ray3558/GodBook/blob/main/docs/cloud-setup.md")!
@@ -65,7 +66,7 @@ struct CloudSettingsView: View {
                     Text(L("只會存取 GodBook 自己建立的檔案（drive.file 權限）。"))
                         .font(.footnote).foregroundStyle(.secondary)
                 case .webdav:
-                    Text(L("使用「快取、備份與 WebDAV」中填寫的伺服器與帳號，章節會放在該資料夾下的 GodBook 資料夾。"))
+                    Text(L("使用「快取、備份與 WebDAV」中填寫的伺服器與帳號，章節會放在該網址底下的雲端資料夾。"))
                         .font(.footnote).foregroundStyle(.secondary)
                 }
                 if let redirect = OAuthConfig.redirectURI(for: kind) {
@@ -117,6 +118,7 @@ struct CloudSettingsView: View {
                 ForEach(cloud.connectedKinds) { Text($0.title).tag($0.rawValue) }
             }
             .pickerStyle(.menu)
+            folderField
             Toggle(L("下載完成後自動上傳"), isOn: $settings.autoUpload)
                 .onChange(of: settings.autoUpload) { _, _ in cloud.settingsChanged() }
             Toggle(L("只在 Wi-Fi 上傳"), isOn: $settings.wifiOnly)
@@ -145,6 +147,31 @@ struct CloudSettingsView: View {
             Text(L("換裝置或重新安裝後，可依雲端上的清單把作品加回下載列表（只在雲端，閱讀時才下載）。"))
                 .font(.footnote).foregroundStyle(.secondary)
         }
+    }
+
+    /// 雲端資料夾：按「儲存」或鍵盤的完成才套用，避免輸入到一半就開始上傳到半成品的資料夾
+    private var folderField: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(L("雲端資料夾")).font(.caption).foregroundStyle(.secondary)
+            HStack {
+                TextField("GodBook", text: $folderDraft)
+                    .textInputAutocapitalization(.never).autocorrectionDisabled().textFieldStyle(.roundedBorder)
+                    .submitLabel(.done)
+                    .onSubmit(saveFolder)
+                if folderDraft != settings.rootFolder {
+                    Button(L("儲存"), action: saveFolder)
+                }
+            }
+            Text(L("目前位置：%@。可用 / 建立多層資料夾，例如「漫畫/GodBook」。已上傳的章節會留在原本的資料夾並照常讀取，之後上傳的才會放到新資料夾；Google Drive 只看得到 GodBook 自己建立的資料夾。", settings.rootPath.joined(separator: "/")))
+                .font(.footnote).foregroundStyle(.secondary)
+        }
+    }
+
+    private func saveFolder() {
+        settings.rootFolder = folderDraft
+        // 存成整理後的路徑（空白會變回 GodBook、不合法的字元換成 _）
+        folderDraft = settings.rootPath.joined(separator: "/")
+        settings.rootFolder = folderDraft
     }
 
     private var currentProgress: Double? {

@@ -452,9 +452,10 @@ struct WebDAVDrive: CloudDrive {
     }
 
     func account() async throws -> String {
-        try await makeCollections([CloudPath.root])
-        guard try await size(of: [CloudPath.root], remoteId: nil) != nil else {
-            throw AppError.message(L("無法在 WebDAV 伺服器上建立 GodBook 資料夾"))
+        let root = CloudPath.root
+        try await makeCollections(root)
+        guard try await size(of: root, remoteId: nil) != nil else {
+            throw AppError.message(L("無法在 WebDAV 伺服器上建立 %@ 資料夾", root.joined(separator: "/")))
         }
         let host = (try? url([]))?.host ?? "WebDAV"
         let user = AppSettings.shared.webdavUser

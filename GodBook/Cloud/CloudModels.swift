@@ -65,6 +65,8 @@ final class CloudSettings: ObservableObject {
     @Stored("cloud.msBusinessTenant", "organizations") var msBusinessTenant: String
     @Stored("cloud.googleClientId", "") var googleClientId: String
     @Stored("cloud.target", "") var targetRaw: String
+    /// 雲端上的存放資料夾（可多層，以 / 分隔）
+    @Stored("cloud.rootFolder", "GodBook") var rootFolder: String
     @Stored("cloud.autoUpload", false) var autoUpload: Bool
     @Stored("cloud.wifiOnly", true) var wifiOnly: Bool
     @Stored("cloud.policy", "keep") var policyRaw: String
@@ -110,18 +112,36 @@ final class CloudSettings: ObservableObject {
         return value.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    /// 整理過的雲端資料夾路徑；空白時用預設的 GodBook
+    var rootPath: [String] {
+        let parts = rootFolder.split(separator: "/").compactMap { CloudPath.folderName(String($0)) }
+        return parts.isEmpty ? CloudPath.defaultRoot : parts
+    }
+
     var businessTenant: String {
         let value = msBusinessTenant.trimmingCharacters(in: .whitespacesAndNewlines)
         return value.isEmpty ? "organizations" : value
     }
 }
 
-/// 雲端上的目錄結構：GodBook/index.json、GodBook/Comics/<作品>/{cover.jpg, ch_<章節>.cbz}
+/// 雲端上的目錄結構：<資料夾>/index.json、<資料夾>/Comics/<作品>/{cover.jpg, ch_<章節>.cbz}
+/// 資料夾可在設定中自訂（預設 GodBook）；每個章節會記住上傳時的資料夾，改設定後舊檔案仍讀得到。
 enum CloudPath {
-    static let root = "GodBook"
-    static var index: [String] { [root, "index.json"] }
+    static let defaultRoot = ["GodBook"]
 
-    static func comic(_ folder: String) -> [String] { [root, "Comics", folder] }
+    /// 目前設定的資料夾
+    static var root: [String] { CloudSettings.shared.rootPath }
+    static var index: [String] { root + ["index.json"] }
+
+    static func comic(_ folder: String, root: [String]? = nil) -> [String] { (root ?? self.root) + ["Comics", folder] }
+
+    /// 使用者輸入的資料夾名稱：替換各家雲端不接受的字元，去掉前後空白與句點
+    static func folderName(_ raw: String) -> String? {
+        let invalid = CharacterSet(charactersIn: "\\\"*:<>?|#%").union(.controlCharacters)
+        let text = String(String.UnicodeScalarView(raw.unicodeScalars.map { invalid.contains($0) ? "_" : $0 }))
+            .trimmingCharacters(in: CharacterSet(charactersIn: " ."))
+        return text.isEmpty ? nil : text
+    }
 
     static func folder(for summary: ComicSummary) -> String {
         component(DownloadStorage.comicDir(summary).lastPathComponent)
@@ -158,8 +178,11 @@ struct CloudRecord: Codable, Hashable {
     var uploadedAt: Date
     /// Google Drive 的檔案 ID（其他服務以路徑存取）
     var remoteId: String?
+    /// 上傳時的雲端資料夾（舊紀錄沒有此欄位，代表預設的 GodBook）
+    var root: [String]?
 
-    var path: [String] { CloudPath.comic(folder) + [fileName] }
+    var comicPath: [String] { CloudPath.comic(folder, root: root ?? CloudPath.defaultRoot) }
+    var path: [String] { comicPath + [fileName] }
 }
 
 /// 從雲端刪除、但還沒同步到雲端清單的章節
@@ -177,6 +200,7 @@ struct CloudIndex: Codable {
         var size: Int64
         var uploadedAt: Date
         var remoteId: String?
+        var root: [String]?
     }
 
     struct Comic: Codable {

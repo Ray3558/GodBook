@@ -349,17 +349,19 @@ final class CloudSync: ObservableObject {
         defer { UIApplication.shared.endBackgroundTask(background) }
 
         let dir = DownloadStorage.chapterDir(item.summary, item.chapter.id)
+        let root = CloudPath.root
         let folder = CloudPath.folder(for: item.summary)
         let fileName = CloudPath.fileName(for: item.chapter)
-        let path = CloudPath.comic(folder) + [fileName]
+        let comicPath = CloudPath.comic(folder, root: root)
+        let path = comicPath + [fileName]
         let drive = CloudDrives.drive(kind)
         do {
             let cbz = try await Task.detached(priority: .utility) { try CloudPackager.makeCBZ(from: dir) }.value
             defer { try? FileManager.default.removeItem(at: cbz) }
             let localSize = CloudHTTP.fileSize(cbz)
 
-            if !records.values.contains(where: { $0.kind == kind && $0.summary.id == item.summary.id }) {
-                await uploadCover(item.summary, folder: folder, drive: drive)
+            if !records.values.contains(where: { $0.kind == kind && $0.comicPath == comicPath }) {
+                await uploadCover(item.summary, to: comicPath, drive: drive)
             }
             let result = try await drive.upload(cbz, to: path) { value in
                 Task { @MainActor in CloudSync.shared.reportProgress(id, value) }
@@ -371,7 +373,8 @@ final class CloudSync: ObservableObject {
                 throw AppError.message(L("雲端檔案大小不符（本機 %@、雲端 %@）", "\(localSize)", "\(remoteSize ?? 0)"))
             }
             records[id] = CloudRecord(kind: kind, summary: item.summary, chapter: item.chapter, folder: folder,
-                                      fileName: fileName, size: localSize, uploadedAt: Date(), remoteId: result.remoteId)
+                                      fileName: fileName, size: localSize, uploadedAt: Date(), remoteId: result.remoteId,
+                                      root: root)
             persistRecords()
             tombstones.removeAll { $0.kind == kind && $0.comicId == item.summary.id && $0.chapterId == item.chapter.id }
             persistTombstones()
@@ -387,10 +390,10 @@ final class CloudSync: ObservableObject {
         if case .uploading = tasks[id] { tasks[id] = .uploading(value) }
     }
 
-    private func uploadCover(_ summary: ComicSummary, folder: String, drive: CloudDrive) async {
+    private func uploadCover(_ summary: ComicSummary, to comicPath: [String], drive: CloudDrive) async {
         let cover = DownloadStorage.coverFile(summary)
         guard FileManager.default.fileExists(atPath: cover.path) else { return }
-        _ = try? await drive.upload(cover, to: CloudPath.comic(folder) + ["cover.jpg"]) { _ in }
+        _ = try? await drive.upload(cover, to: comicPath + ["cover.jpg"]) { _ in }
     }
 
     // MARK: 本機空間
@@ -517,8 +520,10 @@ final class CloudSync: ObservableObject {
         let related = records.filter { $0.value.summary.id == summary.id }
         for kind in Set(related.values.map(\.kind)) {
             guard isConnected(kind) else { throw AppError.message(L("請先在「雲端儲存」連結 %@", kind.title)) }
-            guard let folder = related.values.first(where: { $0.kind == kind })?.folder else { continue }
-            try await CloudDrives.drive(kind).delete(CloudPath.comic(folder), remoteId: nil)
+            // 改過雲端資料夾時，同一部作品可能分散在不同資料夾
+            for comicPath in Set(related.values.filter { $0.kind == kind }.map(\.comicPath)) {
+                try await CloudDrives.drive(kind).delete(comicPath, remoteId: nil)
+            }
             for (key, record) in related where record.kind == kind {
                 records[key] = nil
                 tasks[key] = nil
@@ -594,7 +599,7 @@ final class CloudSync: ObservableObject {
             }
             index.comics[comicId]?.chapters[record.chapter.id] = CloudIndex.Entry(
                 title: record.chapter.title, fileName: record.fileName, size: record.size,
-                uploadedAt: record.uploadedAt, remoteId: record.remoteId)
+                uploadedAt: record.uploadedAt, remoteId: record.remoteId, root: record.root ?? CloudPath.defaultRoot)
         }
         index.updatedAt = Date()
 
@@ -620,7 +625,7 @@ final class CloudSync: ObservableObject {
     func restoreList(from kind: CloudKind) async throws -> Int {
         let drive = CloudDrives.drive(kind)
         guard let index = try await downloadIndex(drive) else {
-            throw AppError.message(L("雲端上還沒有 GodBook 的下載清單"))
+            throw AppError.message(L("雲端的「%@」資料夾裡還沒有 GodBook 的下載清單", CloudPath.root.joined(separator: "/")))
         }
         var added = 0
         for comic in index.comics.values {
@@ -628,7 +633,8 @@ final class CloudSync: ObservableObject {
             if DownloadStorage.loadDetail(summary) == nil { DownloadStorage.saveDetail(comic.detail) }
             let cover = DownloadStorage.coverFile(summary)
             if !FileManager.default.fileExists(atPath: cover.path) {
-                try? await drive.download(CloudPath.comic(comic.folder) + ["cover.jpg"], remoteId: nil, to: cover)
+                let root = comic.chapters.values.first?.root ?? CloudPath.defaultRoot
+                try? await drive.download(CloudPath.comic(comic.folder, root: root) + ["cover.jpg"], remoteId: nil, to: cover)
             }
             for (chapterId, entry) in comic.chapters {
                 let chapter = comic.detail.chapters.first { $0.id == chapterId } ?? Chapter(id: chapterId, title: entry.title)
@@ -636,7 +642,7 @@ final class CloudSync: ObservableObject {
                 guard records[key] == nil else { continue }
                 records[key] = CloudRecord(kind: kind, summary: summary, chapter: chapter, folder: comic.folder,
                                            fileName: entry.fileName, size: entry.size, uploadedAt: entry.uploadedAt,
-                                           remoteId: entry.remoteId)
+                                           remoteId: entry.remoteId, root: entry.root ?? CloudPath.defaultRoot)
                 added += 1
             }
         }

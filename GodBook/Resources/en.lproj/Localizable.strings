@@ -476,7 +476,6 @@
 "上傳未完成" = "Upload did not finish";
 "雲端找不到這個檔案" = "File not found in the cloud";
 "無法取得下載網址" = "Unable to get the download URL";
-"無法在 WebDAV 伺服器上建立 GodBook 資料夾" = "Unable to create the GodBook folder on the WebDAV server";
 "OneDrive 個人版" = "OneDrive Personal";
 "OneDrive 商業版" = "OneDrive for Business";
 "永遠保留本機" = "Always keep on device";
@@ -493,7 +492,6 @@
 "雲端檔案大小不符（本機 %@、雲端 %@）" = "Cloud file size mismatch (device %@, cloud %@)";
 "請先在「雲端儲存」連結 %@" = "Connect %@ in Cloud Storage first";
 "更新雲端清單失敗：%@" = "Failed to update the cloud list: %@";
-"雲端上還沒有 GodBook 的下載清單" = "There is no GodBook download list in the cloud yet";
 "把已下載的章節以 CBZ 格式上傳到雲端，並可釋放手機空間；閱讀只在雲端的章節時會自動下載。OneDrive 與 Google Drive 需要先在各自的開發者後台建立用戶端 ID。" = "Upload downloaded chapters to the cloud as CBZ files and free up space on your phone; cloud-only chapters are downloaded automatically when you read them. OneDrive and Google Drive require a client ID created in their developer consoles.";
 "設定教學（Azure / Google Cloud）" = "Setup guide (Azure / Google Cloud)";
 "雲端儲存" = "Cloud Storage";
@@ -501,7 +499,6 @@
 "租用戶（網域或租用戶 ID，預設 organizations）" = "Tenant (domain or tenant ID, default: organizations)";
 "適用 Microsoft 365 公司或學校帳號（例如 E3）。若應用程式只註冊在自己的租用戶，請填租用戶網域，例如 contoso.onmicrosoft.com。" = "For Microsoft 365 work or school accounts (e.g. E3). If the app is registered only in your own tenant, enter the tenant domain, e.g. contoso.onmicrosoft.com.";
 "只會存取 GodBook 自己建立的檔案（drive.file 權限）。" = "Only accesses files created by GodBook (drive.file scope).";
-"使用「快取、備份與 WebDAV」中填寫的伺服器與帳號，章節會放在該資料夾下的 GodBook 資料夾。" = "Uses the server and account from Cache, Backup & WebDAV. Chapters are stored in a GodBook folder inside that folder.";
 "重新導向 URI" = "Redirect URI";
 "連結中…" = "Connecting…";
 "連結" = "Connect";
@@ -544,3 +541,8 @@
 "刪除下載…" = "Delete download…";
 "雲端儲存（OneDrive、Google Drive、WebDAV）" = "Cloud storage (OneDrive, Google Drive, WebDAV)";
 "下載與匯出的檔案位於「檔案」App → GodBook → Downloads / Exports。清除下載不會刪除雲端上的檔案。" = "Downloads and exports are in the Files app → GodBook → Downloads / Exports. Clearing downloads does not delete files in the cloud.";
+"無法在 WebDAV 伺服器上建立 %@ 資料夾" = "Unable to create the %@ folder on the WebDAV server";
+"雲端的「%@」資料夾裡還沒有 GodBook 的下載清單" = "There is no GodBook download list in the cloud folder \"%@\" yet";
+"雲端資料夾" = "Cloud folder";
+"目前位置：%@。可用 / 建立多層資料夾，例如「漫畫/GodBook」。已上傳的章節會留在原本的資料夾並照常讀取，之後上傳的才會放到新資料夾；Google Drive 只看得到 GodBook 自己建立的資料夾。" = "Current location: %@. Use / for nested folders, e.g. \"Comics/GodBook\". Chapters already uploaded stay in their original folder and can still be read; new uploads go to the new folder. On Google Drive, GodBook can only see folders it created itself.";
+"使用「快取、備份與 WebDAV」中填寫的伺服器與帳號，章節會放在該網址底下的雲端資料夾。" = "Uses the server and account from Cache, Backup & WebDAV. Chapters are stored in the cloud folder under that URL.";
