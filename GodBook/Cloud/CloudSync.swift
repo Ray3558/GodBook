@@ -342,7 +342,7 @@ final class CloudSync: ObservableObject {
             return
         }
         tasks[id] = .uploading(0)
-        var background = UIBackgroundTaskIdentifier.invalid
+        nonisolated(unsafe) var background = UIBackgroundTaskIdentifier.invalid // 只在主執行緒讀寫
         background = UIApplication.shared.beginBackgroundTask(withName: "GodBook.cloudUpload") {
             UIApplication.shared.endBackgroundTask(background)
         }
