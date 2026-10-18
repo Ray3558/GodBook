@@ -95,6 +95,7 @@ final class DownloadManager: ObservableObject {
         guard let index = items.firstIndex(where: { $0.id == id }) else { return }
         let item = items.remove(at: index)
         running[id]?.cancel()
+        CloudSync.shared.unpin([id])
         DownloadStorage.removeChapter(item.summary, chapterId: item.chapter.id)
         // 雲端還有這部作品時保留詳情與封面，供離線顯示與從雲端閱讀
         if !items.contains(where: { $0.summary.id == item.summary.id }), !CloudSync.shared.hasRecords(item.summary.id) {
@@ -107,6 +108,7 @@ final class DownloadManager: ObservableObject {
     func removeComic(_ summary: ComicSummary) {
         let removed = items(for: summary)
         for item in removed { running[item.id]?.cancel() }
+        CloudSync.shared.unpin(removed.map(\.id))
         items.removeAll { $0.summary.id == summary.id }
         if CloudSync.shared.hasRecords(summary.id) {
             for item in removed { DownloadStorage.removeChapter(summary, chapterId: item.chapter.id) }
@@ -137,6 +139,7 @@ final class DownloadManager: ObservableObject {
         let removed = items
         items = []
         let cloud = CloudSync.shared
+        cloud.unpin(removed.map(\.id))
         if cloud.records.isEmpty {
             DownloadStorage.removeAll()
         } else {

@@ -143,6 +143,8 @@ final class CloudSync: ObservableObject {
 
     private let settings = CloudSettings.shared
     private var tombstones: [CloudTombstone]
+    /// 從雲端下載回本機的章節：保存策略不會自動釋放，直到使用者手動釋放或刪除
+    @Published private(set) var pinned: Set<String>
     private var worker: Task<Void, Never>?
     private var syncing = false
     private var started = false
@@ -152,6 +154,7 @@ final class CloudSync: ObservableObject {
     private static let recordsFile = "cloud_manifest.json"
     private static let queueFile = "cloud_queue.json"
     private static let tombstoneFile = "cloud_tombstones.json"
+    private static let pinnedFile = "cloud_pinned.json"
     /// 帳號名稱不用 "cloud." 開頭，避免被放進備份（權杖在 Keychain，換裝置後要重新連結）
     private static let accountPrefix = "cloudAccount."
     private static let dirtyKey = "cloudSync.dirtyIndex"
@@ -160,6 +163,7 @@ final class CloudSync: ObservableObject {
         records = Storage.load([String: CloudRecord].self, from: Self.recordsFile) ?? [:]
         queue = Storage.load([String].self, from: Self.queueFile) ?? []
         tombstones = Storage.load([CloudTombstone].self, from: Self.tombstoneFile) ?? []
+        pinned = Storage.load(Set<String>.self, from: Self.pinnedFile) ?? []
         var names: [String: String] = [:]
         for kind in CloudKind.allCases {
             guard let name = UserDefaults.standard.string(forKey: Self.accountPrefix + kind.rawValue) else { continue }
@@ -411,11 +415,26 @@ final class CloudSync: ObservableObject {
         for item in DownloadManager.shared.items(for: summary) { offload(item) }
     }
 
+    /// 刪除本機下載的單一章節（已上傳的仍可從雲端閱讀）
+    func removeLocal(_ item: DownloadItem) {
+        DownloadManager.shared.remove(item.id)
+        revision += 1
+    }
+
+    func isPinned(_ id: String) -> Bool { pinned.contains(id) }
+
+    /// 本機下載被刪除時由 DownloadManager 呼叫：之後重新下載的章節要照保存策略處理
+    func unpin(_ ids: [String]) {
+        let before = pinned.count
+        pinned.subtract(ids)
+        if pinned.count != before { persistPinned() }
+    }
+
     /// 依保存策略釋放本機空間；summary 為 nil 時檢查全部作品
     func applyRetention(for summary: ComicSummary? = nil) {
         let history = Storage.load([HistoryEntry].self, from: "history.json") ?? []
         let items = DownloadManager.shared.items.filter {
-            $0.state == .finished && records[$0.id] != nil && (summary == nil || $0.summary.id == summary?.id)
+            $0.state == .finished && records[$0.id] != nil && !pinned.contains($0.id) && (summary == nil || $0.summary.id == summary?.id)
         }
         for (comicId, group) in Dictionary(grouping: items, by: { $0.summary.id }) {
             switch settings.policy(for: comicId) {
@@ -451,7 +470,7 @@ final class CloudSync: ObservableObject {
         guard threshold > 0, Self.availableSpace() < threshold else { return }
         let lastRead = Dictionary(history.map { ($0.summary.id, $0.date) }, uniquingKeysWith: { first, _ in first })
         let candidates = DownloadManager.shared.items
-            .filter { records[$0.id] != nil && settings.policy(for: $0.summary.id) == .auto && Self.isLocal($0) }
+            .filter { records[$0.id] != nil && !pinned.contains($0.id) && settings.policy(for: $0.summary.id) == .auto && Self.isLocal($0) }
             .sorted { (lastRead[$0.summary.id] ?? .distantPast) < (lastRead[$1.summary.id] ?? .distantPast) }
         for item in candidates {
             guard Self.availableSpace() < threshold else { break }
@@ -478,9 +497,9 @@ final class CloudSync: ObservableObject {
         return CloudCache.pages(in: dir, source: summary.source)
     }
 
-    /// 把只在雲端的章節下載回本機。手動下載回來的作品改為「永遠保留本機」，避免馬上又被釋放。
+    /// 把只在雲端的章節下載回本機。下載回來的章節會暫時保留（不受保存策略自動釋放），
+    /// 作品本身的保存策略不變；之後可在詳情頁逐話或整部手動釋放。
     func restoreLocal(_ summary: ComicSummary, chapterIds: Set<String>? = nil) async {
-        if [RetentionMode.offload, .recent].contains(settings.policy(for: summary.id)) { settings.setOverride(.keep, for: summary.id) }
         let localIds = Set(DownloadManager.shared.items(for: summary).map(\.id))
         let order = Dictionary((DownloadStorage.loadDetail(summary)?.chapters ?? []).enumerated().map { ($1.id, $0) },
                                uniquingKeysWith: { first, _ in first })
@@ -491,6 +510,8 @@ final class CloudSync: ObservableObject {
             let dir = DownloadStorage.chapterDir(record.summary, record.chapter.id)
             guard (try? await fetch(record, key: key, into: dir)) != nil else { continue }
             DownloadManager.shared.adopt(record.summary, record.chapter)
+            pinned.insert(key)
+            persistPinned()
         }
     }
 
@@ -656,4 +677,5 @@ final class CloudSync: ObservableObject {
     private func persistRecords() { Storage.save(records, to: Self.recordsFile) }
     private func persistQueue() { Storage.save(queue, to: Self.queueFile) }
     private func persistTombstones() { Storage.save(tombstones, to: Self.tombstoneFile) }
+    private func persistPinned() { Storage.save(pinned, to: Self.pinnedFile) }
 }

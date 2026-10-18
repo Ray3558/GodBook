@@ -551,3 +551,6 @@
 "只在雲端（本機已釋放空間）" = "Cloud only (removed from device)";
 "已備份到雲端" = "Backed up to cloud";
 "尚未上傳到雲端" = "Not uploaded to cloud yet";
+"刪除本機下載（保留雲端）" = "Delete from device (keep cloud)";
+"釋放全部本機空間（保留雲端）" = "Free up all device space (keep cloud)";
+"下載回本機的章節會暫時保留，不會被保存策略自動刪除；不需要時可在作品詳情頁逐話或整部釋放。" = "Chapters downloaded back from the cloud are kept and not removed automatically by the policy; free them per chapter or per comic on the comic's detail page when you no longer need them.";

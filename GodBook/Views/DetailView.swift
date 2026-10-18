@@ -200,6 +200,12 @@ struct DetailView: View {
                             Task { await cloud.restoreLocal(detail.summary) }
                         }
                     }
+                    if status.localBackedUp > 0 {
+                        GlassButton(title: detail.chapters.count > 1 ? L("釋放全部本機空間（保留雲端）") : L("釋放本機空間（保留雲端）"),
+                                    systemImage: "externaldrive.badge.minus") {
+                            cloud.offload(comic: detail.summary)
+                        }
+                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -224,7 +230,23 @@ struct DetailView: View {
         let key = DownloadItem.makeID(detail.summary, chapter)
         switch item?.state {
         case .finished:
-            Image(systemName: cloud.record(key) == nil ? "checkmark.circle.fill" : "checkmark.icloud.fill").foregroundStyle(.green)
+            // 已下載的章節：可單獨釋放、上傳或刪除
+            Menu {
+                if cloud.record(key) != nil {
+                    Button { cloud.offload(item!) } label: {
+                        Label(L("釋放本機空間（保留雲端）"), systemImage: "externaldrive.badge.minus")
+                    }
+                } else if cloud.target != nil {
+                    Button { cloud.enqueue([key]) } label: {
+                        Label(L("上傳到雲端"), systemImage: "icloud.and.arrow.up")
+                    }
+                }
+                Button(role: .destructive) { cloud.removeLocal(item!) } label: {
+                    Label(cloud.record(key) == nil ? L("刪除下載") : L("刪除本機下載（保留雲端）"), systemImage: "trash")
+                }
+            } label: {
+                Image(systemName: cloud.record(key) == nil ? "checkmark.circle.fill" : "checkmark.icloud.fill").foregroundStyle(.green)
+            }
         case .downloading:
             Button { downloads.pause(item!.id) } label: {
                 ProgressView(value: item!.progress).progressViewStyle(.circular).frame(width: 24, height: 24)

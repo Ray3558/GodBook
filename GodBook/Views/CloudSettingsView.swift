@@ -216,6 +216,8 @@ struct CloudSettingsView: View {
             }
             Text(L("只有已上傳且確認大小一致的章節才會從本機刪除；作品的詳情與封面會保留。每部作品可在「書庫 → 下載」長按另外指定策略。"))
                 .font(.footnote).foregroundStyle(.secondary)
+            Text(L("下載回本機的章節會暫時保留，不會被保存策略自動刪除；不需要時可在作品詳情頁逐話或整部釋放。"))
+                .font(.footnote).foregroundStyle(.secondary)
             GlassButton(title: L("立即套用"), systemImage: "checkmark.circle") {
                 cloud.applyRetention()
                 Task { await refreshSizes() }
