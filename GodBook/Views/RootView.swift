@@ -36,6 +36,7 @@ struct RootView: View {
         .onChange(of: deepLink.summary) { _, value in if value != nil { tab = 0 } }
         .task {
             DownloadManager.shared.resumeQueued()
+            CloudSync.shared.start()
             await VeneraStore.shared.bootstrap()
             await FollowStore.shared.checkIfDue(favorites: FavoritesStore.shared)
         }

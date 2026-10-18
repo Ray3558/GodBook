@@ -19,6 +19,7 @@ struct DetailView: View {
     @State private var showFavoriteSheet = false
     @State private var reverseOrder = AppSettings.shared.reverseChapters
     @EnvironmentObject private var imageFavorites: ImageFavoritesStore
+    @ObservedObject private var cloud = CloudSync.shared
     @State private var detail: ComicDetail?
     @State private var isOffline = false
     @State private var errorMessage: String?
@@ -172,9 +173,10 @@ struct DetailView: View {
     @ViewBuilder
     private func downloadAccessory(_ detail: ComicDetail, _ chapter: Chapter) -> some View {
         let item = downloads.item(detail.summary, chapter)
+        let key = DownloadItem.makeID(detail.summary, chapter)
         switch item?.state {
         case .finished:
-            Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+            Image(systemName: cloud.record(key) == nil ? "checkmark.circle.fill" : "checkmark.icloud.fill").foregroundStyle(.green)
         case .downloading:
             Button { downloads.pause(item!.id) } label: {
                 ProgressView(value: item!.progress).progressViewStyle(.circular).frame(width: 24, height: 24)
@@ -187,11 +189,25 @@ struct DetailView: View {
             Button { downloads.resume(item!.id) } label: { Image(systemName: "play.circle") }
                 .buttonStyle(.plain)
         case nil:
-            Button { downloads.enqueue(detail: detail, chapters: [chapter]) } label: {
-                Image(systemName: "arrow.down.circle")
+            if cloud.record(key) != nil {
+                // 只在雲端：點一下從雲端下載回本機
+                Button {
+                    Task { await cloud.restoreLocal(detail.summary, chapterIds: [chapter.id]) }
+                } label: {
+                    if cloud.tasks[key] == .downloading {
+                        ProgressView().frame(width: 24, height: 24)
+                    } else {
+                        Image(systemName: "icloud.and.arrow.down")
+                    }
+                }
+                .buttonStyle(.plain)
+            } else {
+                Button { downloads.enqueue(detail: detail, chapters: [chapter]) } label: {
+                    Image(systemName: "arrow.down.circle")
+                }
+                .buttonStyle(.plain)
+                .disabled(isOffline)
             }
-            .buttonStyle(.plain)
-            .disabled(isOffline)
         }
     }
 
@@ -282,7 +298,7 @@ struct DetailView: View {
             isOffline = false
             follow.markRead(summary, chapterCount: loaded.chapters.count, latestTitle: loaded.chapters.last?.title ?? "")
             // 已下載過的作品，順手更新本機詳情快取
-            if !downloads.items(for: summary).isEmpty { DownloadStorage.saveDetail(loaded) }
+            if !downloads.items(for: summary).isEmpty || cloud.hasRecords(summary.id) { DownloadStorage.saveDetail(loaded) }
         } catch {
             if let cached = DownloadStorage.loadDetail(summary) {
                 detail = cached

@@ -269,6 +269,7 @@ struct SettingsView: View {
     private var downloadCard: some View {
         SettingsCard(title: L("下載"), systemImage: "arrow.down.circle.fill") {
             Stepper(L("同時下載圖片數：%@", "\(settings.downloadConcurrency)"), value: $settings.downloadConcurrency, in: 1...8)
+            link(L("雲端儲存（OneDrive、Google Drive、WebDAV）"), systemImage: "icloud.fill") { CloudSettingsView() }
             Toggle(L("翻譯 nhentai 標籤（繁體中文）"), isOn: $settings.translateTags)
             HStack {
                 Text(L("已佔用空間"))
@@ -277,7 +278,7 @@ struct SettingsView: View {
             }
             Button(L("清除所有下載"), role: .destructive) { confirmClear = true }
                 .disabled(downloads.items.isEmpty)
-            Text(L("下載與匯出的檔案位於「檔案」App → GodBook → Downloads / Exports。"))
+            Text(L("下載與匯出的檔案位於「檔案」App → GodBook → Downloads / Exports。清除下載不會刪除雲端上的檔案。"))
                 .font(.footnote).foregroundStyle(.secondary)
         }
         .task(id: downloads.items.map(\.done).reduce(0, +)) {
