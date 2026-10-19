@@ -9,7 +9,7 @@ final class VeneraRuntime {
     static let shared = VeneraRuntime()
 
     private let queue = DispatchQueue(label: "godbook.venera.js", qos: .userInitiated)
-    private let machine = JSVirtualMachine()
+    private let machine: JSVirtualMachine = JSVirtualMachine()
     /// 以下只能在 queue 上存取
     private var contexts: [String: JSContext] = [:]
     private var bridges: [String: VeneraBridge] = [:]
