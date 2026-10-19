@@ -6,8 +6,13 @@ enum Language {
     static let defaultsKey = "ui.language"
 
     static let choices: [(code: String, title: String)] = [
-        ("system", ""), ("zh-Hant", "繁體中文"), ("zh-Hans", "简体中文"), ("en", "English"),
+        ("zh-Hant", "繁體中文"), ("en", "English"), ("zh-Hans", "简体中文"), ("system", ""),
     ]
+
+    /// 選單上顯示的名稱（語言名稱固定用該語言本身書寫，切到看不懂的語言也找得回來）
+    static func title(_ code: String) -> String {
+        code == "system" ? L("跟隨系統") : choices.first { $0.code == code }?.title ?? code
+    }
 
     /// 實際使用的語言代碼：zh-Hant / zh-Hans / en
     static var current: String {

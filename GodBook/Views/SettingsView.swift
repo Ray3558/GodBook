@@ -17,6 +17,7 @@ struct SettingsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
+                languageCard
                 safeModeCard
                 themeCard
                 backgroundCard
@@ -37,6 +38,18 @@ struct SettingsView: View {
         .themedScreen()
         .navigationTitle(L("設定"))
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Picker("Language", selection: $settings.language) {
+                        ForEach(Language.choices, id: \.code) { Text(Language.title($0.code)).tag($0.code) }
+                    }
+                } label: {
+                    Image(systemName: "globe")
+                }
+                .accessibilityLabel("語言 / Language")
+            }
+        }
         .onChange(of: photoItem) { _, item in
             guard let item else { return }
             Task {
@@ -84,9 +97,6 @@ struct SettingsView: View {
                 ForEach(AppearanceMode.allCases) { Text($0.title).tag($0) }
             }
             .pickerStyle(.segmented)
-            Picker(L("語言"), selection: $settings.language) {
-                ForEach(Language.choices, id: \.code) { Text($0.code == "system" ? L("跟隨系統") : $0.title).tag($0.code) }
-            }
         }
     }
 
@@ -131,6 +141,18 @@ struct SettingsView: View {
                     .font(.footnote).foregroundStyle(.secondary)
             }
             Button(L("還原預設主題"), role: .destructive) { theme.reset() }
+        }
+    }
+
+    // MARK: 語言
+
+    /// 標題固定中英並列：不管目前是哪種語言都找得到
+    private var languageCard: some View {
+        SettingsCard(title: "語言 / Language", systemImage: "globe") {
+            Picker("語言 / Language", selection: $settings.language) {
+                ForEach(Language.choices, id: \.code) { Text(Language.title($0.code)).tag($0.code) }
+            }
+            .pickerStyle(.segmented)
         }
     }
 
