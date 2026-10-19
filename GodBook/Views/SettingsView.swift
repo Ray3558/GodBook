@@ -200,7 +200,7 @@ struct SettingsView: View {
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .textFieldStyle(.roundedBorder)
-            Text(L("預設 nhentai.net。若遇到 403，可填入 API Key 或更換鏡像。"))
+            Text(L("預設 nhentai.net。若遇到 403，可填入 API Key 或更換鏡像。API Key 只會送到 nhentai.net，不會送到其他鏡像網域。"))
                 .font(.footnote).foregroundStyle(.secondary)
         }
     }

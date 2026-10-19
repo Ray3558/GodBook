@@ -370,7 +370,6 @@
 "相容 venera 的 JavaScript 漫畫源；內建一批來源，也可自行新增。" = "Compatible with venera JavaScript comic sources; a set is built in and you can add your own.";
 "鏡像網域" = "Mirror domain";
 "API Key（選填）" = "API Key (optional)";
-"預設 nhentai.net。若遇到 403，可填入 API Key 或更換鏡像。" = "Defaults to nhentai.net. If you get a 403, enter an API key or change the mirror.";
 "登出" = "Sign Out";
 "登入中…" = "Signing in…";
 "登入" = "Sign In";
@@ -554,3 +553,8 @@
 "刪除本機下載（保留雲端）" = "Delete from device (keep cloud)";
 "釋放全部本機空間（保留雲端）" = "Free up all device space (keep cloud)";
 "下載回本機的章節會暫時保留，不會被保存策略自動刪除；不需要時可在作品詳情頁逐話或整部釋放。" = "Chapters downloaded back from the cloud are kept and not removed automatically by the policy; free them per chapter or per comic on the comic's detail page when you no longer need them.";
+"預設 nhentai.net。若遇到 403，可填入 API Key 或更換鏡像。API Key 只會送到 nhentai.net，不會送到其他鏡像網域。" = "Defaults to nhentai.net. If you get 403, enter an API Key or switch mirrors. The API Key is only sent to nhentai.net, never to other mirror domains.";
+"腳本的 key 與檔名不符" = "The script's key does not match its file name";
+"腳本試圖存取其他漫畫源的資料" = "The script tried to access another source's data";
+"漫畫源腳本沒有回應（逾時）" = "The comic source script did not respond (timed out)";
+"無法儲存到相簿，請到 iOS「設定 → GodBook → 照片」允許加入照片" = "Couldn't save to Photos. Allow adding photos in iOS Settings → GodBook → Photos.";
