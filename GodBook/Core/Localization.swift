@@ -30,10 +30,13 @@ enum Language {
 
     static var locale: Locale { Locale(identifier: current) }
 
+    /// L() 會在背景執行緒被呼叫（例如網路錯誤訊息），快取要加鎖
+    private static let lock = NSLock()
     private static var cache: (code: String, bundle: Bundle?)?
 
     private static var bundle: Bundle? {
         let code = current
+        lock.lock(); defer { lock.unlock() }
         if let cache, cache.code == code { return cache.bundle }
         let resolved = Bundle.main.path(forResource: code, ofType: "lproj").flatMap(Bundle.init(path:))
         cache = (code, resolved)

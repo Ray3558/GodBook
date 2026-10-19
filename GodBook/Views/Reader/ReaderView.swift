@@ -79,6 +79,7 @@ struct ReaderView: View {
         .onDisappear {
             volume.stop()
             UIApplication.shared.isIdleTimerDisabled = false
+            library.flush() // 雲端保存策略會讀取檔案中的閱讀位置
             CloudSync.shared.applyRetention(for: detail.summary) // 「只保留最近幾話」依新的閱讀位置調整
         }
         .onReceive(autoTurnTimer) { _ in
@@ -323,8 +324,7 @@ struct ReaderView: View {
 
     private func saveToPhotos() async {
         guard let image = await image(at: current) else { show(L("圖片尚未載入完成")); return }
-        UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
-        show(L("已儲存到相簿"))
+        show(PhotoSaver.resultMessage(await PhotoSaver.save(image)))
     }
 
     private func share() async {
