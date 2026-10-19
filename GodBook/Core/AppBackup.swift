@@ -10,7 +10,7 @@ enum AppBackup {
     }
 
     private static let defaultsPrefixes = ["nh.", "jm.", "reader.", "ui.", "dl.", "theme.", "venera.",
-                                           "net.", "lock.", "webdav.", "src.", "lib.", "search.", "list."]
+                                           "net.", "lock.", "webdav.", "src.", "lib.", "search.", "list.", "cloud."]
     /// 不放進備份的檔案（下載清單指向本機檔案，換裝置沒有意義）
     private static let excludedFiles: Set<String> = ["downloads.json"]
 
